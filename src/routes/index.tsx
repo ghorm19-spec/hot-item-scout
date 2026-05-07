@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Score Flipp — Scan. Score. Flip." },
-      { name: "description", content: "Scan thrift, vintage and used items. Instant CAD resale price + Hotness Score for the GTA." },
+      { name: "description", content: "Scan thrift, vintage and used items. Instant resale price + Hotness Score in your local currency, anywhere in the world." },
     ],
   }),
 });
@@ -30,7 +30,7 @@ function Index() {
           <div>
             <p className="font-display font-bold leading-none">Score Flipp</p>
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <MapPin className="size-3" /> Toronto · CAD
+              <MapPin className="size-3" /> Global · Local currency
             </p>
           </div>
         </div>
@@ -41,14 +41,14 @@ function Index() {
 
       <section className="relative mt-4 rounded-3xl overflow-hidden p-6 grain bg-gradient-to-br from-secondary via-card to-secondary border border-border">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary font-semibold">
-          <Sparkles className="size-3.5" /> AI-powered · GTA-tuned
+          <Sparkles className="size-3.5" /> AI-powered · Worldwide
         </div>
         <h1 className="mt-3 text-4xl font-display font-black leading-[1.05]">
           Scan it. <br />
           <span className="text-primary">Score it.</span> Flip it.
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Snap a thrift find — get a real CAD price, demand Hotness, and a Toronto-savvy flip plan in seconds.
+          Snap a thrift find anywhere in the world — get a real local-currency price, demand Hotness, and a flip plan in seconds.
         </p>
 
         <button
@@ -73,10 +73,10 @@ function Index() {
 
       <section className="mt-6">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1">
-          <Flame className="size-3.5 text-accent" /> Hot in the GTA right now
+          <Flame className="size-3.5 text-accent" /> Hot worldwide right now
         </p>
         <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-2">
-          {["Vintage vinyl","Leafs jerseys","Roots fleece","TTC swag","Arc'teryx shells","Canadian coins"].map(t => (
+          {["Sneakers","Vintage denim","Pokémon cards","Vinyl records","Y2K fashion","Retro games","Designer bags","Film cameras"].map(t => (
             <span key={t} className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs">{t}</span>
           ))}
         </div>
