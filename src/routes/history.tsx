@@ -66,7 +66,7 @@ function HistoryPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.category}</p>
                   <p className="font-semibold truncate">{r.title}</p>
-                  <p className="text-xs text-muted-foreground">CAD ${r.priceLow}–${r.priceHigh}</p>
+                  <p className="text-xs text-muted-foreground">{r.currency || "USD"} {r.priceLow}–{r.priceHigh}</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl">{r.hotness.emoji}</div>
