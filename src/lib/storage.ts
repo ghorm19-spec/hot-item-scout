@@ -10,6 +10,7 @@ export interface ScanRecord {
   code?: string;
   priceLow: number;
   priceHigh: number;
+  currency: string;
   buyPrice?: number;
   condition: "Poor" | "Fair" | "Good" | "Excellent";
   comps: { source: string; price: number }[];

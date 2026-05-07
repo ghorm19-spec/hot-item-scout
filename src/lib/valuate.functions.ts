@@ -11,23 +11,26 @@ export interface ValuationOutput {
   title: string;
   category: string;
   brand?: string;
-  priceLowCAD: number;
-  priceHighCAD: number;
+  priceLowCAD: number;   // resale low in selected currency
+  priceHighCAD: number;  // resale high in selected currency
+  currency: string;      // ISO 4217, e.g. USD, EUR, GBP, CAD, AUD, JPY
   condition: "Poor" | "Fair" | "Good" | "Excellent";
   comps: { source: string; price: number }[];
   salesVelocity: number;   // 0-100
   marginPotential: number; // 0-100
   trendScore: number;      // 0-100
   confidence: number;      // 0-100
-  torontoBoost: boolean;
-  neighbourhood?: string;
+  torontoBoost: boolean;   // legacy: regional demand boost flag
+  neighbourhood?: string;  // city / region / neighbourhood where it trends
   flipTip: string;
 }
 
-const SYSTEM = `You are Score Flipp, an expert Canadian thrift / resale valuation engine for the Greater Toronto Area.
-Always price in CAD. Surface demand. Cross-reference Kijiji GTA, Facebook Marketplace Toronto, eBay.ca, Poshmark CA, Mercari CA, VarageSale.
-Boost trend for hot Toronto categories: vintage vinyl, hockey memorabilia, Roots/Arc'teryx/Canada Goose clothing, TTC swag, Canadian coins/stamps, Blue Jays / Raptors / Leafs gear.
+const SYSTEM = `You are Score Flipp, a global expert resale valuation engine for thrift, vintage, and used goods worldwide.
+Price in the most relevant local currency for the item's strongest resale market (USD, EUR, GBP, CAD, AUD, JPY, etc.) and always return the ISO currency code.
+Surface demand by cross-referencing the world's largest resale marketplaces relevant to the item: eBay (.com/.co.uk/.de/.ca/.com.au), Mercari (US/JP), Depop, Poshmark, Vinted, Grailed, StockX, GOAT, Facebook Marketplace, Kijiji, Gumtree, Yahoo Auctions Japan, Discogs, Reverb, Catawiki, Chrono24, Vestiaire Collective, Etsy, Amazon, Whatnot.
+Identify globally hot resale categories: sneakers, streetwear, designer/luxury, vintage denim, Y2K, vinyl records, trading cards (Pokémon, sports, MTG), retro video games & consoles, vintage tech, watches, cameras, tools, outdoor gear, mid-century furniture, designer toys.
 If input is a barcode (UPC/EAN/ISBN) treat it as an exact product match — be specific. If QR, parse it as a product link or inventory tag.
+Set torontoBoost=true only when the item has a strong regional demand spike (any city/region globally) and put that location in neighbourhood (e.g. "Tokyo", "Brooklyn NY", "Berlin Mitte").
 Return ONLY a JSON tool call. Be realistic, not optimistic. If unknown, give a wide range and lower confidence.`;
 
 const TOOL = {
@@ -42,8 +45,9 @@ const TOOL = {
         title: { type: "string" },
         category: { type: "string" },
         brand: { type: "string" },
-        priceLowCAD: { type: "number" },
-        priceHighCAD: { type: "number" },
+        priceLowCAD: { type: "number", description: "Low resale price in chosen currency" },
+        priceHighCAD: { type: "number", description: "High resale price in chosen currency" },
+        currency: { type: "string", description: "ISO 4217 currency code, e.g. USD, EUR, GBP, CAD, AUD, JPY" },
         condition: { type: "string", enum: ["Poor", "Fair", "Good", "Excellent"] },
         comps: {
           type: "array",
@@ -51,7 +55,7 @@ const TOOL = {
             type: "object",
             additionalProperties: false,
             properties: {
-              source: { type: "string", enum: ["Kijiji GTA", "Facebook Marketplace", "eBay.ca", "Poshmark CA", "Mercari CA", "VarageSale"] },
+              source: { type: "string", description: "Marketplace name, e.g. eBay, Mercari, Depop, Vinted, Grailed, StockX, Discogs, Facebook Marketplace, Yahoo Auctions JP" },
               price: { type: "number" },
             },
             required: ["source", "price"],
@@ -59,14 +63,14 @@ const TOOL = {
         },
         salesVelocity: { type: "number", description: "0-100, normalized monthly sales" },
         marginPotential: { type: "number", description: "0-100 percent margin estimate" },
-        trendScore: { type: "number", description: "0-100 demand trend" },
+        trendScore: { type: "number", description: "0-100 global demand trend" },
         confidence: { type: "number", description: "0-100" },
-        torontoBoost: { type: "boolean" },
-        neighbourhood: { type: "string", description: "GTA neighbourhood where this trends, e.g. Kensington Market" },
+        torontoBoost: { type: "boolean", description: "True if item has a strong regional demand spike anywhere globally" },
+        neighbourhood: { type: "string", description: "City / region where this trends globally, e.g. Tokyo, Brooklyn NY, Berlin" },
         flipTip: { type: "string", description: "One-sentence flip strategy with platform + price + timeframe" },
       },
       required: [
-        "title","category","priceLowCAD","priceHighCAD","condition","comps",
+        "title","category","priceLowCAD","priceHighCAD","currency","condition","comps",
         "salesVelocity","marginPotential","trendScore","confidence","torontoBoost","flipTip",
       ],
     },
@@ -83,7 +87,7 @@ export const valuate = createServerFn({ method: "POST" })
     let userText = `Scan type: ${data.scanType}.`;
     if (data.code) userText += ` Code/payload: ${data.code}.`;
     if (data.notes) userText += ` Notes: ${data.notes}.`;
-    userText += " Identify the item and return a Toronto/Canada resale valuation.";
+    userText += " Identify the item and return a global resale valuation in the most relevant local currency.";
     userParts.push({ type: "text", text: userText });
 
     if (data.imageBase64) {

@@ -49,6 +49,7 @@ function ScanPage() {
         code: input.code,
         priceLow: v.priceLowCAD,
         priceHigh: v.priceHighCAD,
+        currency: v.currency || "USD",
         condition: v.condition,
         comps: v.comps,
         hotness: hot,
