@@ -92,9 +92,9 @@ function ResultPage() {
 
         <div className="mt-4 flex items-end justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Resale (CAD)</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Resale ({rec.currency || "USD"})</p>
             <p className="font-display font-black text-3xl">
-              ${adjusted.low}<span className="text-muted-foreground text-xl"> – </span>${adjusted.high}
+              {fmt(adjusted.low, rec.currency)}<span className="text-muted-foreground text-xl"> – </span>{fmt(adjusted.high, rec.currency)}
             </p>
           </div>
           <div className="text-right">
@@ -123,7 +123,7 @@ function ResultPage() {
       <section className="mt-4 rounded-2xl border border-border bg-card p-4">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Profit calculator</p>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-sm">Buy price (CAD)</span>
+          <span className="text-sm">Buy price ({rec.currency || "USD"})</span>
           <input
             type="number" inputMode="decimal" min={0}
             value={buyPrice || ""}
@@ -134,9 +134,9 @@ function ResultPage() {
           />
         </label>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <Pill label="Mid sell" value={`$${adjusted.mid.toFixed(0)}`} />
-          <Pill label="Fees ~13%" value={`-$${adjusted.fees.toFixed(0)}`} />
-          <Pill label="Net profit" value={`$${adjusted.profit.toFixed(0)}`} highlight />
+          <Pill label="Mid sell" value={fmt(adjusted.mid, rec.currency)} />
+          <Pill label="Fees ~13%" value={`-${fmt(adjusted.fees, rec.currency)}`} />
+          <Pill label="Net profit" value={fmt(adjusted.profit, rec.currency)} highlight />
         </div>
       </section>
 
@@ -151,7 +151,7 @@ function ResultPage() {
               <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-primary to-accent" style={{ width: `${(c.price/maxComp)*100}%` }} />
               </div>
-              <span className="w-14 text-right text-sm font-display font-bold">${c.price}</span>
+              <span className="w-14 text-right text-sm font-display font-bold">{fmt(c.price, rec.currency)}</span>
             </li>
           ))}
         </ul>
