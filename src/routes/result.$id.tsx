@@ -187,3 +187,12 @@ function Pill({ label, value, highlight }: { label: string; value: string; highl
     </div>
   );
 }
+
+function fmt(n: number, currency?: string) {
+  const cur = currency || "USD";
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(n);
+  } catch {
+    return `${cur} ${Math.round(n)}`;
+  }
+}
