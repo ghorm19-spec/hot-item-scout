@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { playShutter, playSuccess, playDetect, playError, primeAudio } from "@/lib/sounds";
+import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Zap, ZapOff, Focus } from "lucide-react";
