@@ -82,7 +82,10 @@ function ScanPage() {
         <button onClick={() => navigate({ to: "/" })} className="size-9 grid place-items-center rounded-full bg-card border border-border">
           <ArrowLeft className="size-4" />
         </button>
-        <h1 className="font-display font-bold">Scan</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display font-bold">Scan</h1>
+          <RegionPicker />
+        </div>
         <label className="size-9 grid place-items-center rounded-full bg-card border border-border cursor-pointer">
           <Upload className="size-4" />
           <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} />
@@ -110,7 +113,7 @@ function ScanPage() {
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col items-center gap-3 glow-primary">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="font-display font-bold">Scoring your find…</p>
-            <p className="text-xs text-muted-foreground">Cross-checking comps in CAD</p>
+            <p className="text-xs text-muted-foreground">Cross-checking local + global comps</p>
           </div>
         </div>
       )}
