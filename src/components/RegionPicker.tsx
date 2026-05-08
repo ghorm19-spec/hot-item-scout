@@ -43,7 +43,7 @@ export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
             <header className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <Globe className="size-4 text-primary" />
-                <h2 className="font-display font-bold">Choose your region</h2>
+                <h2 className="font-display font-bold">{t("region.title")}</h2>
               </div>
               <button onClick={() => setOpen(false)} className="size-8 grid place-items-center rounded-full hover:bg-secondary">
                 <X className="size-4" />
