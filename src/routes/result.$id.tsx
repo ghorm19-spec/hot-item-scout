@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { shareText } from "@/lib/marketplace";
 
@@ -17,6 +17,13 @@ function confidenceTier(c: number): { label: string; cls: string } {
   if (c >= 50) return { label: "MEDIUM", cls: "text-warm border-warm/40 bg-warm/10" };
   return { label: "LOW", cls: "text-cold border-cold/40 bg-cold/10" };
 }
+
+const TIER_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
+  VERIFIED:    { label: "VERIFIED MATCH",  cls: "text-hot border-hot/40 bg-hot/10",   icon: ShieldCheck },
+  ESTIMATE:    { label: "AI ESTIMATE",     cls: "text-warm border-warm/40 bg-warm/10", icon: Sparkles },
+  SPECULATIVE: { label: "SPECULATIVE",     cls: "text-cold border-cold/40 bg-cold/10", icon: AlertTriangle },
+  UNKNOWN:     { label: "UNIDENTIFIED",    cls: "text-cold border-cold/40 bg-cold/10", icon: HelpCircle },
+};
 
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
@@ -117,22 +124,32 @@ function ResultPage() {
                   {rec.hotness.label} · {rec.hotness.score}
                 </div>
               )}
-              {rec.verified && (
-                <div className="inline-flex items-center gap-1 rounded-full border border-hot/40 bg-hot/10 text-hot px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                  <ShieldCheck className="size-3" /> Verified
-                </div>
-              )}
+              {(() => {
+                const tier = rec.pricingTier || (rec.verified ? "VERIFIED" : "ESTIMATE");
+                const t = TIER_BADGE[tier];
+                const Icon = t.icon;
+                return (
+                  <div className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${t.cls}`}>
+                    <Icon className="size-3" /> {t.label}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
 
-        {!isUnknown && (
+        {!isUnknown && (rec.pricingTier === "VERIFIED" || rec.pricingTier === "ESTIMATE" || !rec.pricingTier) && (
           <div className="mt-4 flex items-end justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Resale ({rec.currency || "USD"})</p>
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                {rec.pricingTier === "VERIFIED" ? "Estimated resale" : "AI-estimated resale"} ({rec.currency || "USD"})
+              </p>
               <p className="font-display font-black text-3xl">
                 {fmt(adjusted.low, rec.currency)}<span className="text-muted-foreground text-xl"> – </span>{fmt(adjusted.high, rec.currency)}
               </p>
+              {rec.pricingTier !== "VERIFIED" && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">Verify against current sold listings before pricing.</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Confidence</p>
@@ -143,10 +160,33 @@ function ResultPage() {
             </div>
           </div>
         )}
+
+        {!isUnknown && rec.pricingTier === "SPECULATIVE" && (
+          <div className="mt-4 rounded-xl border border-cold/40 bg-cold/10 p-3">
+            <p className="text-[11px] uppercase tracking-widest text-cold font-bold">Pricing withheld</p>
+            <p className="text-xs text-foreground/80 mt-1">Confidence is too low to show a trustworthy price. Try a clearer photo or scan the barcode.</p>
+          </div>
+        )}
+
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {rec.dataSource ? `Source: ${rec.dataSource} · ` : ""}{rec.comps.length} comps{rec.code ? ` · ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
+          {rec.dataSource ? `Source: ${rec.dataSource} · ` : ""}{rec.comps.length} {rec.compsAreEstimates !== false ? "AI-estimated" : "sold"} comps{rec.code ? ` · ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
         </p>
       </section>
+
+      {/* Confidence reasons — provenance/honesty panel */}
+      {rec.confidenceReasons && rec.confidenceReasons.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-border bg-card p-3">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1"><Info className="size-3" /> Why this confidence</p>
+          <ul className="text-xs text-foreground/85 space-y-1 list-disc list-inside">
+            {rec.confidenceReasons.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+          {rec.suggestBarcode && rec.scanType === "photo" && (
+            <Link to="/scan" search={{ mode: "barcode" } as any} className="mt-3 inline-flex items-center gap-1 rounded-lg bg-primary/15 text-primary border border-primary/30 px-3 py-1.5 text-xs font-bold">
+              <ScanLine className="size-3.5" /> Scan barcode for verified result
+            </Link>
+          )}
+        </div>
+      )}
 
       {rec.warnings && rec.warnings.length > 0 && !isUnknown && (
         <div className="mt-3 rounded-2xl border border-warm/40 bg-warm/10 p-3 flex gap-2">
@@ -170,42 +210,56 @@ function ResultPage() {
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-border bg-card p-4">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Profit calculator</p>
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm">Buy price ({rec.currency || "USD"})</span>
-          <input
-            type="number" inputMode="decimal" min={0}
-            value={buyPrice || ""}
-            onChange={e => setBuyPrice(parseFloat(e.target.value) || 0)}
-            onBlur={persistTweaks}
-            placeholder="0"
-            className="w-28 rounded-lg bg-input border border-border px-3 py-2 text-right font-display font-bold"
-          />
-        </label>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <Pill label="Mid sell" value={fmt(adjusted.mid, rec.currency)} />
-          <Pill label="Fees ~13%" value={`-${fmt(adjusted.fees, rec.currency)}`} />
-          <Pill label="Net profit" value={fmt(adjusted.profit, rec.currency)} highlight />
-        </div>
-      </section>
+      {(rec.pricingTier === "VERIFIED" || rec.pricingTier === "ESTIMATE" || !rec.pricingTier) && !isUnknown && (
+        <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Profit calculator</p>
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm">Buy price ({rec.currency || "USD"})</span>
+            <input
+              type="number" inputMode="decimal" min={0}
+              value={buyPrice || ""}
+              onChange={e => setBuyPrice(parseFloat(e.target.value) || 0)}
+              onBlur={persistTweaks}
+              placeholder="0"
+              className="w-28 rounded-lg bg-input border border-border px-3 py-2 text-right font-display font-bold"
+            />
+          </label>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <Pill label="Mid sell" value={fmt(adjusted.mid, rec.currency)} />
+            <Pill label="Fees ~13%" value={`-${fmt(adjusted.fees, rec.currency)}`} />
+            <Pill label="Net profit" value={fmt(adjusted.profit, rec.currency)} highlight />
+          </div>
+        </section>
+      )}
 
-      <section className="mt-4 rounded-2xl border border-border bg-card p-4">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1">
-          <TrendingUp className="size-3.5" /> Recent sold comps
-        </p>
-        <ul className="space-y-2">
-          {rec.comps.map((c, i) => (
-            <li key={i} className="flex items-center gap-3">
-              <span className="w-32 shrink-0 text-xs text-muted-foreground">{c.source}</span>
-              <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-primary to-accent" style={{ width: `${(c.price/maxComp)*100}%` }} />
-              </div>
-              <span className="w-14 text-right text-sm font-display font-bold">{fmt(c.price, rec.currency)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {rec.comps.length > 0 && (
+        <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="size-3.5" /> Comparable prices
+            </p>
+            {rec.compsAreEstimates !== false && (
+              <span className="text-[9px] uppercase tracking-wider font-bold text-warm border border-warm/40 bg-warm/10 px-1.5 py-0.5 rounded">
+                AI Estimates
+              </span>
+            )}
+          </div>
+          <ul className="space-y-2">
+            {rec.comps.map((c, i) => (
+              <li key={i} className="flex items-center gap-3">
+                <span className="w-32 shrink-0 text-xs text-muted-foreground">{c.source}</span>
+                <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-primary to-accent" style={{ width: `${(c.price/maxComp)*100}%` }} />
+                </div>
+                <span className="w-14 text-right text-sm font-display font-bold">{fmt(c.price, rec.currency)}</span>
+              </li>
+            ))}
+          </ul>
+          {rec.compsAreEstimates !== false && (
+            <p className="mt-2 text-[10px] text-muted-foreground">Estimates derived from AI knowledge, not real-time sold listings. Verify on the platform.</p>
+          )}
+        </section>
+      )}
 
       <section className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 glow-primary">
         <p className="text-xs uppercase tracking-widest text-primary mb-1">Flip strategy</p>
@@ -217,7 +271,7 @@ function ResultPage() {
         )}
       </section>
 
-      {!isUnknown && (
+      {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
         <MarketplaceExport
           rec={rec}
           trigger={

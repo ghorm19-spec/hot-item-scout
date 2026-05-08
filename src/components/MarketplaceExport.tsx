@@ -1,20 +1,26 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { generateListings, listingToText, type MarketplaceListing } from "@/lib/marketplace";
+import { generateListings, listingToText, platformFeeLabel, type Marketplace } from "@/lib/marketplace";
 import type { ScanRecord } from "@/lib/storage";
-import { Copy, Check, Share2, ShoppingBag } from "lucide-react";
+import { Copy, Check, Share2, ShoppingBag, AlertTriangle, ShieldCheck, Info } from "lucide-react";
 
-const MARKETS: { key: MarketplaceListing["marketplace"]; label: string; color: string }[] = [
-  { key: "ebay",     label: "eBay",         color: "text-warm" },
-  { key: "mercari",  label: "Mercari",      color: "text-primary" },
-  { key: "facebook", label: "Facebook",     color: "text-cold" },
-  { key: "depop",    label: "Depop",        color: "text-accent" },
-  { key: "poshmark", label: "Poshmark",     color: "text-hot" },
-  { key: "generic",  label: "Generic",      color: "text-muted-foreground" },
+const MARKETS: { key: Marketplace; label: string; color: string }[] = [
+  { key: "ebay",     label: "eBay",     color: "text-warm" },
+  { key: "mercari",  label: "Mercari",  color: "text-primary" },
+  { key: "facebook", label: "Facebook", color: "text-cold" },
+  { key: "depop",    label: "Depop",    color: "text-accent" },
+  { key: "poshmark", label: "Poshmark", color: "text-hot" },
+  { key: "generic",  label: "Generic",  color: "text-muted-foreground" },
 ];
 
+const RISK_STYLES: Record<"low" | "medium" | "high", string> = {
+  low: "border-hot/40 bg-hot/10 text-hot",
+  medium: "border-warm/40 bg-warm/10 text-warm",
+  high: "border-cold/40 bg-cold/10 text-cold",
+};
+
 export function MarketplaceExport({ rec, trigger }: { rec: ScanRecord; trigger: React.ReactNode }) {
-  const [active, setActive] = useState<MarketplaceListing["marketplace"]>("ebay");
+  const [active, setActive] = useState<Marketplace>("ebay");
   const [copied, setCopied] = useState(false);
   const listings = generateListings(rec);
   const current = listings[active];
@@ -32,21 +38,22 @@ export function MarketplaceExport({ rec, trigger }: { rec: ScanRecord; trigger: 
   const share = async () => {
     if (navigator.share) {
       try { await navigator.share({ title: current.title, text: fullText }); } catch {}
-    } else {
-      copy();
-    }
+    } else { copy(); }
   };
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(undefined, { style: "currency", currency: rec.currency, maximumFractionDigits: 2 }).format(n);
 
   return (
     <Sheet>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent side="bottom" className="rounded-t-3xl border-border bg-card max-h-[85vh] overflow-y-auto">
+      <SheetContent side="bottom" className="rounded-t-3xl border-border bg-card max-h-[88vh] overflow-y-auto">
         <SheetHeader className="text-left">
           <SheetTitle className="font-display flex items-center gap-2">
             <ShoppingBag className="size-5 text-primary" />
             Listing copy generator
           </SheetTitle>
-          <p className="text-xs text-muted-foreground">Pick a marketplace — copy a ready-to-paste listing.</p>
+          <p className="text-xs text-muted-foreground">Pick a marketplace — copy a fee-aware, ready-to-paste listing.</p>
         </SheetHeader>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -65,21 +72,60 @@ export function MarketplaceExport({ rec, trigger }: { rec: ScanRecord; trigger: 
           ))}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-border bg-background/60 p-4 space-y-3 animate-rise">
+        {/* Risk banner */}
+        <div className={`mt-3 rounded-xl border p-3 flex gap-2 text-xs ${RISK_STYLES[current.resaleRisk]}`}>
+          {current.resaleRisk === "low" ? <ShieldCheck className="size-4 mt-0.5 shrink-0" /> : <AlertTriangle className="size-4 mt-0.5 shrink-0" />}
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Title</p>
-            <p className="font-display font-bold leading-tight">{current.title}</p>
+            <p className="font-bold uppercase tracking-wider">Resale risk: {current.resaleRisk}</p>
+            <ul className="mt-1 space-y-0.5 opacity-90 list-disc list-inside">
+              {current.riskReasons.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
           </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-border bg-background/60 p-4 space-y-3 animate-rise">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Price</p>
-            <p className="font-display font-bold text-primary">
-              {new Intl.NumberFormat(undefined, { style: "currency", currency: rec.currency, maximumFractionDigits: 0 }).format(current.price)}
+            <div className="flex items-baseline justify-between mb-1">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Title</p>
+              <span className={`text-[10px] font-bold ${current.titleScore.score >= 75 ? "text-hot" : current.titleScore.score >= 50 ? "text-warm" : "text-cold"}`}>
+                SEO {current.titleScore.score}/100
+              </span>
+            </div>
+            <p className="font-display font-bold leading-tight">{current.title}</p>
+            {current.titleScore.tips.length > 0 && (
+              <ul className="mt-1 text-[11px] text-muted-foreground list-disc list-inside">
+                {current.titleScore.tips.slice(0, 2).map((t, i) => <li key={i}>{t}</li>)}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Recommended price</p>
+            <p className="font-display font-bold text-primary text-xl">{fmt(current.recommendedPrice)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Fees ({platformFeeLabel(active)}): −{fmt(current.fees.total)} · Net to you: <span className="text-foreground font-semibold">{fmt(current.fees.net)}</span>
             </p>
           </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Condition guidance</p>
+            <p className="text-xs text-foreground/85">{current.conditionGuidance}</p>
+          </div>
+
           <div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Description</p>
             <p className="text-sm whitespace-pre-line text-foreground/90">{current.description}</p>
           </div>
+
+          {current.templateNotes.length > 0 && (
+            <div className="rounded-xl border border-border bg-secondary/40 p-2.5">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1"><Info className="size-3" /> Listing tips</p>
+              <ul className="text-[11px] text-foreground/85 space-y-0.5 list-disc list-inside">
+                {current.templateNotes.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
+
           <div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Hashtags</p>
             <p className="text-xs text-primary/90">{current.hashtags.map((t) => "#" + t).join(" ")}</p>

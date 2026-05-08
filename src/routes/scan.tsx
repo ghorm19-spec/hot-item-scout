@@ -14,6 +14,8 @@ import { useT } from "@/lib/i18n";
 import { validateBarcode } from "@/lib/barcode";
 import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
 import { primeAudio, playError } from "@/lib/sounds";
+import { track } from "@/lib/telemetry";
+import { withRetry, isOnline } from "@/lib/network";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -37,23 +39,36 @@ function ScanPage() {
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
 
-    // Pre-validate barcode client-side: bail fast on misreads instead of paying for AI hallucination.
+    track({ type: "scan.captured", mode: activeMode, ms: 0 });
+
+    // Pre-validate barcode client-side
     if (activeMode === "barcode" && input.code) {
       const v = validateBarcode(input.code);
       if (!v.valid && v.kind !== "OTHER") {
         playError();
         navigator.vibrate?.([60, 40, 60]);
+        track({ type: "scan.barcode_invalid", code: input.code });
         setErr("That barcode looks like a misread. Hold steady and try again.");
         return;
       }
     }
 
+    if (!isOnline()) {
+      playError();
+      setErr("You're offline. Reconnect and try again — scans need a network connection.");
+      return;
+    }
+
     setBusy(true); setErr(null);
+    const t0 = performance.now();
     try {
       const region = getRegion();
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
-      const v = cached || await valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } });
+      const v = cached || await withRetry(
+        () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
+        { retries: 2 },
+      );
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
 
       const exact = activeMode !== "photo" && !!input.code && v.verified;
@@ -87,13 +102,19 @@ function ScanPage() {
         unknown: v.unknown,
         brand: v.brand,
         imageUrl: v.imageUrl,
+        pricingTier: v.pricingTier,
+        compsAreEstimates: v.compsAreEstimates,
+        confidenceReasons: v.confidenceReasons,
+        suggestBarcode: v.suggestBarcode,
       };
       saveScan(rec);
+      track({ type: "valuation.ok", verified: !!v.verified, tier: v.pricingTier, confidence: rec.confidence, ms: Math.round(performance.now() - t0) });
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
       console.error("Valuation failed", e);
       playError();
       navigator.vibrate?.([60, 40, 60]);
+      track({ type: "valuation.error", message: String(e?.message || e) });
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }

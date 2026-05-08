@@ -15,6 +15,8 @@ export interface ValuationInput {
   };
 }
 
+export type PricingTier = "VERIFIED" | "ESTIMATE" | "SPECULATIVE" | "UNKNOWN";
+
 export interface ValuationOutput {
   title: string;
   category: string;
@@ -31,25 +33,31 @@ export interface ValuationOutput {
   torontoBoost: boolean;
   neighbourhood?: string;
   flipTip: string;
-  // Phase 1 additions
+  // Phase 1 + Phase 2 honesty additions
   verified: boolean;
   dataSource: string;
   warnings: string[];
   unknown: boolean;
   imageUrl?: string;
+  // NEW — explicit honesty layer
+  pricingTier: PricingTier;       // how to render prices in UI
+  compsAreEstimates: boolean;     // when true, label comps as AI ESTIMATES not sold listings
+  confidenceReasons: string[];    // human-readable explanations
+  suggestBarcode?: boolean;       // photo-mode: nudge user to scan barcode
 }
 
 const SYSTEM_BASE = `You are Flip it, a precise resale-valuation engine for thrift, vintage, collectibles, and used consumer goods worldwide.
 
 ABSOLUTE RULES — anti-hallucination:
-1. NEVER invent a product. If you are not at least 60% sure what the item is, set unknown=true, confidence=0, title="Unknown item", and return generic empty comps. Do NOT guess Mario Kart, Pokémon, sneakers, or any branded product without clear visual or barcode evidence.
+1. NEVER invent a product. If you are not at least 70% sure what the item is, set unknown=true, confidence=0, title="Unknown item", and return generic empty comps. Do NOT guess Mario Kart, Pokémon, sneakers, or any branded product without clear visual or barcode evidence.
 2. If a VERIFIED PRODUCT block is provided, you MUST use exactly that title, brand, and category. Do not substitute a different product. Your only job then is to price it.
 3. Title and category MUST be coherent (a vitamin bottle is "Supplements", not "Video Games").
-4. Comps must be realistic for the SPECIFIC item. If unsure, return fewer comps with a wider price range and lower confidence — do not pad with fake listings.
+4. Comps are AI ESTIMATES based on training-data knowledge, not real-time sold listings. Be conservative with the range. If unsure, return fewer comps with a wider price range and lower confidence — do NOT pad with fabricated listings.
 5. Confidence reflects YOUR certainty: 90+ only with verified DB match, 60-85 strong visual evidence, 30-55 plausible guess, 0-29 unknown.
-6. Price in the user's local currency, prioritizing their local marketplaces. Cross-validate with global marketplaces (eBay, Mercari, StockX, Discogs, Grailed, Vestiaire, Catawiki, Reverb).
-7. Hot resale categories: sneakers, streetwear, designer/luxury, vintage denim, Y2K, vinyl, trading cards (Pokémon, sports, MTG), retro games & consoles, vintage tech, watches, cameras, tools, mid-century furniture, designer toys.
-8. Return ONLY a JSON tool call.`;
+6. For PHOTO scans without a verified barcode, default to caution. If the item could be many similar SKUs, set unknown=true rather than guessing one.
+7. Price in the user's local currency, prioritizing their local marketplaces. Cross-validate with global marketplaces (eBay, Mercari, StockX, Discogs, Grailed, Vestiaire, Catawiki, Reverb).
+8. Hot resale categories: sneakers, streetwear, designer/luxury, vintage denim, Y2K, vinyl, trading cards (Pokémon, sports, MTG), retro games & consoles, vintage tech, watches, cameras, tools, mid-century furniture, designer toys.
+9. Return ONLY a JSON tool call.`;
 
 const TOOL = {
   type: "function" as const,
@@ -247,24 +255,55 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       warnings.push("Few comparable sales found — confidence reduced.");
     }
 
-    // Photo-only scans without verified data: cap confidence
+    // Photo-only scans without verified data: cap confidence harder
+    let suggestBarcode = false;
     if (data.scanType === "photo" && !verified) {
-      confidence = Math.min(confidence, 75);
+      confidence = Math.min(confidence, 65);
+      suggestBarcode = true;
+    }
+
+    confidence = clamp(confidence);
+
+    // Derive pricing tier honestly
+    const reasons: string[] = [];
+    let pricingTier: PricingTier;
+    if (verified && confidence >= 75) {
+      pricingTier = "VERIFIED";
+      reasons.push(`Identity confirmed by ${verified.source}.`);
+      reasons.push("Prices are AI estimates calibrated against the verified product.");
+    } else if (confidence >= 60) {
+      pricingTier = "ESTIMATE";
+      reasons.push("Identity inferred by AI vision — not database-verified.");
+      reasons.push("Prices are AI estimates, not real-time sold listings.");
+    } else if (confidence >= 30) {
+      pricingTier = "SPECULATIVE";
+      reasons.push("Low identification confidence — pricing should not be trusted as factual.");
+    } else {
+      pricingTier = "UNKNOWN";
+    }
+    if (suggestBarcode) reasons.push("Scan the barcode for a verified, more reliable result.");
+    if (data.scanType === "photo") reasons.push("Photo-only scans are inherently less reliable than barcode scans.");
+
+    // Suppress speculative prices entirely so we don't lie with numbers
+    let priceLow = Number(parsed.priceLowCAD) || 0;
+    let priceHigh = Number(parsed.priceHighCAD) || 0;
+    if (pricingTier === "SPECULATIVE" || pricingTier === "UNKNOWN") {
+      priceLow = 0; priceHigh = 0;
     }
 
     return {
       title,
       category,
       brand,
-      priceLowCAD: Number(parsed.priceLowCAD) || 0,
-      priceHighCAD: Number(parsed.priceHighCAD) || 0,
+      priceLowCAD: priceLow,
+      priceHighCAD: priceHigh,
       currency: parsed.currency || data.region?.currency || "USD",
       condition: parsed.condition || "Good",
       comps,
       salesVelocity: clamp(parsed.salesVelocity ?? 0),
       marginPotential: clamp(parsed.marginPotential ?? 0),
       trendScore: clamp(parsed.trendScore ?? 0),
-      confidence: clamp(confidence),
+      confidence,
       torontoBoost: !!parsed.torontoBoost,
       neighbourhood: parsed.neighbourhood,
       flipTip: parsed.flipTip || "Insufficient data to suggest a flip strategy.",
@@ -273,6 +312,10 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       warnings,
       unknown: false,
       imageUrl: verified?.imageUrl,
+      pricingTier,
+      compsAreEstimates: true, // always true until a real sold-listing API is wired
+      confidenceReasons: reasons,
+      suggestBarcode,
     };
   });
 
@@ -295,5 +338,9 @@ function unknownResult(opts: { currency: string; warnings: string[]; dataSource:
     dataSource: opts.dataSource,
     warnings: opts.warnings,
     unknown: true,
+    pricingTier: "UNKNOWN",
+    compsAreEstimates: true,
+    confidenceReasons: ["The AI was not confident enough to identify this item.", "Try a clearer photo, better lighting, or scanning the barcode instead."],
+    suggestBarcode: opts.dataSource !== "barcode-invalid",
   };
 }
