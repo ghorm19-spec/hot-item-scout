@@ -61,7 +61,7 @@ function ResultPage() {
 
   return (
     <AppShell>
-      <header className="pt-4 pb-3 flex items-center justify-between">
+      <header dir="ltr" className="pt-4 pb-3 flex items-center justify-between">
         <button onClick={() => navigate({ to: "/" })} className="size-9 grid place-items-center rounded-full bg-card border border-border">
           <ArrowLeft className="size-4" />
         </button>

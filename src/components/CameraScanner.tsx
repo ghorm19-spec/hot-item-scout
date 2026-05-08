@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { playShutter, playSuccess, playDetect } from "@/lib/sounds";
 
 type ScanMode = "photo" | "barcode" | "qr";
 
@@ -65,6 +66,8 @@ export function CameraScanner({ mode, onCapture }: Props) {
       const codes = await detectorRef.current.detect(videoRef.current);
       if (codes && codes.length > 0) {
         navigator.vibrate?.(60);
+        playDetect();
+        setTimeout(() => playSuccess(), 120);
         onCapture({ code: codes[0].rawValue });
         return;
       }
@@ -75,9 +78,12 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const snapshot = () => {
     const v = videoRef.current; const c = canvasRef.current;
     if (!v || !c) return;
+    playShutter();
+    navigator.vibrate?.(40);
     c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d")?.drawImage(v, 0, 0);
     const dataUrl = c.toDataURL("image/jpeg", 0.85);
+    setTimeout(() => playSuccess(), 180);
     onCapture({ imageBase64: dataUrl });
   };
 
