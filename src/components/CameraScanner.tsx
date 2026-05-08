@@ -333,10 +333,16 @@ export function CameraScanner({ mode, onCapture }: Props) {
 
       {error && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center bg-black/70">
-          <div>
+          <div className="max-w-xs">
             <p className="text-destructive font-semibold mb-2">Camera unavailable</p>
             <p className="text-sm text-white/70">{error}</p>
             <p className="text-xs text-white/50 mt-3">Allow camera access, or upload a photo from the home screen.</p>
+            <button
+              onClick={(e) => { e.stopPropagation(); retry(); }}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-bold active:scale-95 transition"
+            >
+              <RefreshCw className="size-4" /> Retry
+            </button>
           </div>
         </div>
       )}
