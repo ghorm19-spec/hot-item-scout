@@ -19,26 +19,31 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = useNavigate();
   const [count, setCount] = useState(0);
-  useEffect(() => { setCount(getHistory().length); }, []);
+  const [region, setRegion] = useState<Region | null>(null);
+  useEffect(() => { setCount(getHistory().length); setRegion(getRegion()); }, []);
 
   const go = (mode: "photo" | "barcode" | "qr") =>
     navigate({ to: "/scan", search: { mode } as any });
 
   return (
     <AppShell>
-      <header className="pt-6 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center font-display font-black glow-primary">FI</div>
-          <div>
+      <header className="pt-6 pb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-9 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center font-display font-black glow-primary">FI</div>
+          <div className="min-w-0">
             <p className="font-display font-bold leading-none">Flip it</p>
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <MapPin className="size-3" /> Global · Local currency
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+              <MapPin className="size-3 shrink-0" />
+              {region ? `${region.name} · ${region.currency}` : "Global · Local currency"}
             </p>
           </div>
         </div>
-        <Link to="/history" className="text-xs text-muted-foreground">
-          {count} scan{count === 1 ? "" : "s"}
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <RegionPicker onChange={(r) => setRegion(r)} />
+          <Link to="/history" className="text-xs text-muted-foreground whitespace-nowrap">
+            {count}
+          </Link>
+        </div>
       </header>
 
       <section className="relative mt-4 rounded-3xl overflow-hidden p-6 grain bg-gradient-to-br from-secondary via-card to-secondary border border-border">
