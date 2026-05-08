@@ -141,8 +141,6 @@ export const REGIONS: Region[] = [
     markets: ["Avito", "Yula", "Wildberries"] },
   { code: "UA", name: "Ukraine", flag: "🇺🇦", currency: "UAH", locale: "uk-UA",
     markets: ["OLX UA", "Prom", "Facebook Marketplace"] },
-  { code: "IL", name: "Israel", flag: "🇮🇱", currency: "ILS", locale: "he-IL",
-    markets: ["Yad2", "Facebook Marketplace"] },
 ];
 
 const KEY = "flipit.region.v1";
