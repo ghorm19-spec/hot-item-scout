@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone } from "lucide-react";
+import { MarketplaceExport } from "@/components/MarketplaceExport";
+import { shareText } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
