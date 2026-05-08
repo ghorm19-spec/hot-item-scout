@@ -125,9 +125,9 @@ function ScanPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
-        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
-        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
+        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
+        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
+        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
       </div>
 
       <div className="aspect-[3/4] w-full">
