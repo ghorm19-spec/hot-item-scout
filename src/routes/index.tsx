@@ -82,9 +82,21 @@ function Index() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1">
           <Flame className="size-3.5 text-accent" /> Hot worldwide right now
         </p>
-        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-2">
-          {["Sneakers","Vintage denim","Pokémon cards","Vinyl records","Y2K fashion","Retro games","Designer bags","Film cameras"].map(t => (
-            <span key={t} className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs">{t}</span>
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-none snap-x snap-mandatory">
+          {[
+            "Sneakers","Vintage denim","Pokémon cards","Vinyl records","Y2K fashion",
+            "Retro games","Designer bags","Film cameras","Vintage tees","Carhartt",
+            "Levi's 501","Trading cards","Funko Pop","Lego sets","Mid-century furniture",
+            "Watches","Streetwear","Designer toys","Vintage tech","Outdoor gear",
+            "Workwear","Band tees","Polaroid","Vintage Nike","Stüssy",
+          ].map(t => (
+            <button
+              key={t}
+              onClick={() => navigate({ to: "/scan", search: { mode: "photo" } as any })}
+              className="snap-start shrink-0 rounded-full border border-border bg-card hover:bg-secondary px-3 py-1.5 text-xs whitespace-nowrap transition"
+            >
+              {t}
+            </button>
           ))}
         </div>
       </section>
