@@ -1,4 +1,5 @@
 import type { HotnessResult } from "./hotness";
+import type { PricingTier } from "./valuate.functions";
 
 export interface ScanRecord {
   id: string;
@@ -19,12 +20,17 @@ export interface ScanRecord {
   flipTip: string;
   neighbourhood?: string;
   // Phase 1 — accuracy
-  verified?: boolean;          // matched to a verified product DB
-  dataSource?: string;         // e.g. "Open Food Facts", "Open Library", "AI vision"
-  warnings?: string[];         // sanity-check warnings
-  unknown?: boolean;           // AI couldn't identify with reasonable confidence
+  verified?: boolean;
+  dataSource?: string;
+  warnings?: string[];
+  unknown?: boolean;
   brand?: string;
-  imageUrl?: string;           // verified product image URL (preferred over thumbnail)
+  imageUrl?: string;
+  // Phase 2 — pricing honesty
+  pricingTier?: PricingTier;
+  compsAreEstimates?: boolean;
+  confidenceReasons?: string[];
+  suggestBarcode?: boolean;
 }
 
 const KEY = "scoreflipp.history.v1";
