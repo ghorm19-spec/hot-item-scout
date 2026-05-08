@@ -84,7 +84,7 @@ const TRANSLATIONS: Record<string, Dict> = {
     "home.badge": "مدعوم بالذكاء الاصطناعي · حول العالم",
     "home.title.scan": "صوّر.",
     "home.title.score": "قيّم.",
-    "home.title.flip": "ابِع بربح.",
+    "home.title.flip": "اربح.",
     "home.lead": "صوّر أي قطعة مستعملة في أي مكان بالعالم — احصل على سعر بالعملة المحلية، مؤشر الطلب وخطة بيع خلال ثوانٍ.",
     "home.cta": "ابدأ المسح",
     "mode.photo": "صورة",
