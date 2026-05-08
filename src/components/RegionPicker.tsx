@@ -88,7 +88,7 @@ export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
                 );
               })}
               {filtered.length === 0 && (
-                <li className="px-4 py-8 text-center text-sm text-muted-foreground">No matches</li>
+                <li className="px-4 py-8 text-center text-sm text-muted-foreground">{t("region.none")}</li>
               )}
             </ul>
           </div>
