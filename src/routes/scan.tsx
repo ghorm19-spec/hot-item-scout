@@ -86,7 +86,8 @@ function ScanPage() {
           <ArrowLeft className="size-4" />
         </button>
         <div className="flex items-center gap-2">
-          <h1 className="font-display font-bold">Scan</h1>
+          <h1 className="font-display font-bold">{t("scan.title")}</h1>
+          <LanguagePicker />
           <RegionPicker />
         </div>
         <label className="size-9 grid place-items-center rounded-full bg-card border border-border cursor-pointer">
@@ -96,9 +97,9 @@ function ScanPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <ModeTab icon={<Camera className="size-4" />}   label="Photo"   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
-        <ModeTab icon={<ScanLine className="size-4" />} label="Barcode" active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
-        <ModeTab icon={<QrCode className="size-4" />}   label="QR"      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
+        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
+        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
+        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
       </div>
 
       <div className="aspect-[3/4] w-full">
