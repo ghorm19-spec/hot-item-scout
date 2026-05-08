@@ -26,7 +26,7 @@ function Index() {
     <AppShell>
       <header className="pt-6 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center font-display font-black glow-primary">SF</div>
+          <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center font-display font-black glow-primary">FI</div>
           <div>
             <p className="font-display font-bold leading-none">Flip it</p>
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
