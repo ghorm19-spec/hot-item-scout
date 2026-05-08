@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { playShutter, playSuccess, playDetect } from "@/lib/sounds";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 type ScanMode = "photo" | "barcode" | "qr";
 
@@ -8,11 +10,16 @@ interface Props {
   onCapture: (result: { code?: string; imageBase64?: string }) => void;
 }
 
-// Native BarcodeDetector when available (Chrome/Android, Safari iOS 17+)
-const supportsBarcode = typeof window !== "undefined" && "BarcodeDetector" in window;
+const supportsNativeBarcode = typeof window !== "undefined" && "BarcodeDetector" in window;
 
-const BARCODE_FORMATS = [
-  "qr_code","ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","codabar","data_matrix","aztec","pdf417"
+const NATIVE_BARCODE_FORMATS = [
+  "ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","codabar","data_matrix","aztec","pdf417"
+];
+
+const ZXING_BARCODE_FORMATS = [
+  BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+  BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93, BarcodeFormat.ITF,
+  BarcodeFormat.CODABAR, BarcodeFormat.DATA_MATRIX, BarcodeFormat.AZTEC, BarcodeFormat.PDF_417,
 ];
 
 export function CameraScanner({ mode, onCapture }: Props) {
@@ -21,11 +28,14 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const detectorRef = useRef<any>(null);
+  const zxingRef = useRef<BrowserMultiFormatReader | null>(null);
   const rafRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
     let cancelled = false;
+    firedRef.current = false;
 
     (async () => {
       try {
@@ -40,12 +50,36 @@ export function CameraScanner({ mode, onCapture }: Props) {
           setReady(true);
         }
 
-        if ((mode === "barcode" || mode === "qr") && supportsBarcode) {
-          // @ts-expect-error - BarcodeDetector
-          detectorRef.current = new window.BarcodeDetector({
-            formats: mode === "qr" ? ["qr_code"] : BARCODE_FORMATS.filter(f => f !== "qr_code"),
-          });
-          loop();
+        if (mode === "barcode" || mode === "qr") {
+          if (supportsNativeBarcode) {
+            try {
+              // @ts-expect-error - BarcodeDetector
+              detectorRef.current = new window.BarcodeDetector({
+                formats: mode === "qr" ? ["qr_code"] : NATIVE_BARCODE_FORMATS,
+              });
+              nativeLoop();
+              return;
+            } catch {
+              // fall through to zxing
+            }
+          }
+          // ZXing fallback (works on iOS Safari, Firefox, etc.)
+          const hints = new Map();
+          hints.set(
+            DecodeHintType.POSSIBLE_FORMATS,
+            mode === "qr" ? [BarcodeFormat.QR_CODE] : ZXING_BARCODE_FORMATS,
+          );
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 });
+          zxingRef.current = reader;
+          if (videoRef.current) {
+            reader.decodeFromVideoElement(videoRef.current, (result) => {
+              if (result && !firedRef.current) {
+                firedRef.current = true;
+                fireCode(result.getText());
+              }
+            }).catch(() => {});
+          }
         }
       } catch (e: any) {
         setError(e?.message || "Camera permission denied");
@@ -55,35 +89,43 @@ export function CameraScanner({ mode, onCapture }: Props) {
     return () => {
       cancelled = true;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      try { (zxingRef.current as any)?.reset?.(); } catch {}
+      zxingRef.current = null;
       stream?.getTracks().forEach(t => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  const loop = async () => {
-    if (!videoRef.current || !detectorRef.current) return;
+  const fireCode = (code: string) => {
+    navigator.vibrate?.(60);
+    playDetect();
+    setTimeout(() => playSuccess(), 120);
+    onCapture({ code });
+  };
+
+  const nativeLoop = async () => {
+    if (!videoRef.current || !detectorRef.current || firedRef.current) return;
     try {
       const codes = await detectorRef.current.detect(videoRef.current);
       if (codes && codes.length > 0) {
-        navigator.vibrate?.(60);
-        playDetect();
-        setTimeout(() => playSuccess(), 120);
-        onCapture({ code: codes[0].rawValue });
+        firedRef.current = true;
+        fireCode(codes[0].rawValue);
         return;
       }
     } catch {}
-    rafRef.current = requestAnimationFrame(loop);
+    rafRef.current = requestAnimationFrame(nativeLoop);
   };
 
   const snapshot = () => {
     const v = videoRef.current; const c = canvasRef.current;
-    if (!v || !c) return;
+    if (!v || !c || firedRef.current) return;
+    firedRef.current = true;
     playShutter();
     navigator.vibrate?.(40);
     c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d")?.drawImage(v, 0, 0);
     const dataUrl = c.toDataURL("image/jpeg", 0.85);
-    setTimeout(() => playSuccess(), 180);
+    setTimeout(() => playSuccess(), 200);
     onCapture({ imageBase64: dataUrl });
   };
 
@@ -125,13 +167,9 @@ export function CameraScanner({ mode, onCapture }: Props) {
         </button>
       )}
 
-      {(mode === "barcode" || mode === "qr") && !supportsBarcode && (
-        <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-card/90 backdrop-blur p-3 text-xs text-muted-foreground">
-          Live barcode scanning isn't supported in this browser. Tap SNAP and we'll read the code from the photo with AI.
-          <button
-            onClick={snapshot}
-            className="mt-2 w-full rounded-lg bg-primary text-primary-foreground py-2 font-semibold"
-          >Snap & decode</button>
+      {(mode === "barcode" || mode === "qr") && ready && (
+        <div className="absolute bottom-4 left-4 right-4 text-center text-xs text-white/80 bg-black/40 rounded-xl py-2 backdrop-blur">
+          Hold steady — auto-detecting {mode === "qr" ? "QR code" : "barcode"}…
         </div>
       )}
     </div>

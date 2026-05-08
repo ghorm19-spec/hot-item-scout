@@ -66,7 +66,8 @@ function ScanPage() {
       saveScan(rec);
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
-      setErr(e?.message || "Something went wrong");
+      console.error("Valuation failed", e);
+      setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }
   };
