@@ -255,24 +255,55 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       warnings.push("Few comparable sales found — confidence reduced.");
     }
 
-    // Photo-only scans without verified data: cap confidence
+    // Photo-only scans without verified data: cap confidence harder
+    let suggestBarcode = false;
     if (data.scanType === "photo" && !verified) {
-      confidence = Math.min(confidence, 75);
+      confidence = Math.min(confidence, 65);
+      suggestBarcode = true;
+    }
+
+    confidence = clamp(confidence);
+
+    // Derive pricing tier honestly
+    const reasons: string[] = [];
+    let pricingTier: PricingTier;
+    if (verified && confidence >= 75) {
+      pricingTier = "VERIFIED";
+      reasons.push(`Identity confirmed by ${verified.source}.`);
+      reasons.push("Prices are AI estimates calibrated against the verified product.");
+    } else if (confidence >= 60) {
+      pricingTier = "ESTIMATE";
+      reasons.push("Identity inferred by AI vision — not database-verified.");
+      reasons.push("Prices are AI estimates, not real-time sold listings.");
+    } else if (confidence >= 30) {
+      pricingTier = "SPECULATIVE";
+      reasons.push("Low identification confidence — pricing should not be trusted as factual.");
+    } else {
+      pricingTier = "UNKNOWN";
+    }
+    if (suggestBarcode) reasons.push("Scan the barcode for a verified, more reliable result.");
+    if (data.scanType === "photo") reasons.push("Photo-only scans are inherently less reliable than barcode scans.");
+
+    // Suppress speculative prices entirely so we don't lie with numbers
+    let priceLow = Number(parsed.priceLowCAD) || 0;
+    let priceHigh = Number(parsed.priceHighCAD) || 0;
+    if (pricingTier === "SPECULATIVE" || pricingTier === "UNKNOWN") {
+      priceLow = 0; priceHigh = 0;
     }
 
     return {
       title,
       category,
       brand,
-      priceLowCAD: Number(parsed.priceLowCAD) || 0,
-      priceHighCAD: Number(parsed.priceHighCAD) || 0,
+      priceLowCAD: priceLow,
+      priceHighCAD: priceHigh,
       currency: parsed.currency || data.region?.currency || "USD",
       condition: parsed.condition || "Good",
       comps,
       salesVelocity: clamp(parsed.salesVelocity ?? 0),
       marginPotential: clamp(parsed.marginPotential ?? 0),
       trendScore: clamp(parsed.trendScore ?? 0),
-      confidence: clamp(confidence),
+      confidence,
       torontoBoost: !!parsed.torontoBoost,
       neighbourhood: parsed.neighbourhood,
       flipTip: parsed.flipTip || "Insufficient data to suggest a flip strategy.",
@@ -281,6 +312,10 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       warnings,
       unknown: false,
       imageUrl: verified?.imageUrl,
+      pricingTier,
+      compsAreEstimates: true, // always true until a real sold-listing API is wired
+      confidenceReasons: reasons,
+      suggestBarcode,
     };
   });
 
@@ -303,5 +338,9 @@ function unknownResult(opts: { currency: string; warnings: string[]; dataSource:
     dataSource: opts.dataSource,
     warnings: opts.warnings,
     unknown: true,
+    pricingTier: "UNKNOWN",
+    compsAreEstimates: true,
+    confidenceReasons: ["The AI was not confident enough to identify this item.", "Try a clearer photo, better lighting, or scanning the barcode instead."],
+    suggestBarcode: opts.dataSource !== "barcode-invalid",
   };
 }
