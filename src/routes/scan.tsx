@@ -92,6 +92,8 @@ function ScanPage() {
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
       console.error("Valuation failed", e);
+      playError();
+      navigator.vibrate?.([60, 40, 60]);
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }
