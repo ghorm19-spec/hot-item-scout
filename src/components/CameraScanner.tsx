@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { Zap, ZapOff, Focus } from "lucide-react";
+import { Zap, ZapOff, Focus, RefreshCw } from "lucide-react";
+import { track } from "@/lib/telemetry";
 
 type ScanMode = "photo" | "barcode" | "qr";
 type ScanState = "starting" | "ready" | "scanning" | "detected" | "captured" | "error";
