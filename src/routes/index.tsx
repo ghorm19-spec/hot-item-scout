@@ -106,7 +106,7 @@ function Index() {
       </section>
 
       <p className="mt-6 text-center text-[11px] text-muted-foreground">
-        Add to Home Screen for the full app · Unlimited scans
+        {t("home.footer")}
       </p>
     </AppShell>
   );
