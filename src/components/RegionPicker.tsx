@@ -4,6 +4,7 @@ import { Check, Globe, Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [region, setLocal] = useState<Region>(REGIONS[0]);
   const [q, setQ] = useState("");
