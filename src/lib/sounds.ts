@@ -26,27 +26,53 @@ function beep(freq: number, duration = 0.08, type: OscillatorType = "sine", gain
   osc.stop(t0 + duration + 0.02);
 }
 
-// Camera shutter: short noise burst + click
+// Realistic DSLR shutter: mirror-up click, brief noise, mirror-down click
 export function playShutter() {
   const c = getCtx(); if (!c) return;
-  // Click
-  beep(1800, 0.04, "square", 0.18);
-  // Noise burst
-  const t0 = c.currentTime + 0.02;
-  const buffer = c.createBuffer(1, c.sampleRate * 0.12, c.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2);
-  }
-  const src = c.createBufferSource();
-  src.buffer = buffer;
-  const g = c.createGain();
-  g.gain.value = 0.25;
-  const filter = c.createBiquadFilter();
-  filter.type = "highpass";
-  filter.frequency.value = 1500;
-  src.connect(filter).connect(g).connect(c.destination);
-  src.start(t0);
+  const now = c.currentTime;
+
+  const clack = (when: number, freq: number, dur: number, gain: number) => {
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(freq, now + when);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.4, now + when + dur);
+    g.gain.setValueAtTime(0.0001, now + when);
+    g.gain.exponentialRampToValueAtTime(gain, now + when + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + when + dur);
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 3500;
+    osc.connect(lp).connect(g).connect(c.destination);
+    osc.start(now + when);
+    osc.stop(now + when + dur + 0.02);
+  };
+
+  const noise = (when: number, dur: number, gain: number, hp: number) => {
+    const buf = c.createBuffer(1, Math.max(1, Math.floor(c.sampleRate * dur)), c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+    }
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filter = c.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = hp;
+    const g = c.createGain();
+    g.gain.value = gain;
+    src.connect(filter).connect(g).connect(c.destination);
+    src.start(now + when);
+  };
+
+  // Mirror up — sharp metallic clack
+  clack(0, 2200, 0.05, 0.55);
+  noise(0, 0.04, 0.45, 2500);
+  // Shutter blades whoosh
+  noise(0.05, 0.07, 0.18, 800);
+  // Mirror down — second clack
+  clack(0.13, 1800, 0.07, 0.5);
+  noise(0.13, 0.05, 0.4, 2000);
 }
 
 // Success: two-note rising chirp
