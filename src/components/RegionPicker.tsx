@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { REGIONS, getRegion, setRegion, type Region } from "@/lib/regions";
 import { Check, Globe, Search, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
   const [open, setOpen] = useState(false);
