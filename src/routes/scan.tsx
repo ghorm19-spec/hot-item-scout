@@ -9,6 +9,8 @@ import { computeHotness } from "@/lib/hotness";
 import { saveScan, type ScanRecord } from "@/lib/storage";
 import { getRegion } from "@/lib/regions";
 import { RegionPicker } from "@/components/RegionPicker";
+import { LanguagePicker } from "@/components/LanguagePicker";
+import { useT } from "@/lib/i18n";
 
 type Mode = "photo" | "barcode" | "qr";
 
