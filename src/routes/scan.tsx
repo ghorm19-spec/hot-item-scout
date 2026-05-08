@@ -107,17 +107,17 @@ function ScanPage() {
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground text-center">
-        {activeMode === "photo" && "Frame the item, then tap SNAP."}
-        {activeMode === "barcode" && "Hold steady — barcode auto-detects."}
-        {activeMode === "qr" && "Point at the QR code — auto-detects."}
+        {activeMode === "photo" && t("scan.hint.photo")}
+        {activeMode === "barcode" && t("scan.hint.barcode")}
+        {activeMode === "qr" && t("scan.hint.qr")}
       </p>
 
       {busy && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm">
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col items-center gap-3 glow-primary">
             <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="font-display font-bold">Scoring your find…</p>
-            <p className="text-xs text-muted-foreground">Cross-checking local + global comps</p>
+            <p className="font-display font-bold">{t("scan.scoring")}</p>
+            <p className="text-xs text-muted-foreground">{t("scan.scoring.sub")}</p>
           </div>
         </div>
       )}
