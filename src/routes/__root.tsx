@@ -73,10 +73,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Score Flipp — Scan thrift finds, see resale value & Hotness" },
+      { title: "Flip it — Scan thrift finds, see resale value & Hotness" },
       { name: "description", content: "Snap a photo, scan a barcode or QR. Get instant CAD resale value, demand Hotness Score, and a Toronto-aware flip strategy." },
       { name: "theme-color", content: "#1a1a2e" },
-      { property: "og:title", content: "Score Flipp" },
+      { property: "og:title", content: "Flip it" },
       { property: "og:description", content: "Scan thrift items. Real resale value. Real demand. Toronto-tuned." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

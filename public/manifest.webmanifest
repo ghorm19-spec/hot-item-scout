@@ -1,6 +1,6 @@
 {
-  "name": "Score Flipp",
-  "short_name": "Score Flipp",
+  "name": "Flip it",
+  "short_name": "Flip it",
   "description": "Scan thrift finds. See resale value & Hotness Score instantly.",
   "start_url": "/",
   "display": "standalone",

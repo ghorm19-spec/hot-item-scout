@@ -5,7 +5,7 @@ import { computeBadges, getHistory, type ScanRecord } from "@/lib/storage";
 
 export const Route = createFileRoute("/badges")({
   component: BadgesPage,
-  head: () => ({ meta: [{ title: "Badges — Score Flipp" }] }),
+  head: () => ({ meta: [{ title: "Badges — Flip it" }] }),
 });
 
 function BadgesPage() {
