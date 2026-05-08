@@ -25,6 +25,7 @@ export const Route = createFileRoute("/scan")({
 function ScanPage() {
   const { mode } = Route.useSearch();
   const navigate = useNavigate();
+  const { t } = useT();
   const [activeMode, setActiveMode] = useState<Mode>(mode);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
