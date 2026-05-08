@@ -13,6 +13,7 @@ import { LanguagePicker } from "@/components/LanguagePicker";
 import { useT } from "@/lib/i18n";
 import { validateBarcode } from "@/lib/barcode";
 import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
+import { primeAudio, playError } from "@/lib/sounds";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -40,6 +41,8 @@ function ScanPage() {
     if (activeMode === "barcode" && input.code) {
       const v = validateBarcode(input.code);
       if (!v.valid && v.kind !== "OTHER") {
+        playError();
+        navigator.vibrate?.([60, 40, 60]);
         setErr("That barcode looks like a misread. Hold steady and try again.");
         return;
       }
@@ -89,6 +92,8 @@ function ScanPage() {
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
       console.error("Valuation failed", e);
+      playError();
+      navigator.vibrate?.([60, 40, 60]);
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }
@@ -120,9 +125,9 @@ function ScanPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
-        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
-        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
+        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
+        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
+        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
       </div>
 
       <div className="aspect-[3/4] w-full">

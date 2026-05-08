@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { playShutter, playSuccess, playDetect } from "@/lib/sounds";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { Zap, ZapOff, Focus } from "lucide-react";
 
 type ScanMode = "photo" | "barcode" | "qr";
+type ScanState = "starting" | "ready" | "scanning" | "detected" | "captured" | "error";
 
 interface Props {
   mode: ScanMode;
@@ -25,29 +27,73 @@ const ZXING_BARCODE_FORMATS = [
 export function CameraScanner({ mode, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<ScanState>("starting");
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [focusRing, setFocusRing] = useState<{ x: number; y: number } | null>(null);
+
   const detectorRef = useRef<any>(null);
   const zxingRef = useRef<BrowserMultiFormatReader | null>(null);
   const rafRef = useRef<number | null>(null);
   const firedRef = useRef(false);
 
+  // Multi-frame confirmation: only accept code after seeing it stable across frames
+  const candidateRef = useRef<{ code: string; hits: number; firstAt: number } | null>(null);
+  const REQUIRED_HITS = 2;
+  const STABLE_WINDOW_MS = 800;
+
+  const cleanupCamera = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    try { (zxingRef.current as any)?.reset?.(); } catch {}
+    zxingRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    trackRef.current = null;
+  }, []);
+
   useEffect(() => {
-    let stream: MediaStream | null = null;
     let cancelled = false;
     firedRef.current = false;
+    candidateRef.current = null;
+    setState("starting");
+    setError(null);
+    setTorchOn(false);
+    setTorchSupported(false);
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            // @ts-expect-error advanced focus hint
+            focusMode: "continuous",
+          },
           audio: false,
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        const track = stream.getVideoTracks()[0];
+        trackRef.current = track;
+
+        // Probe torch capability
+        const caps: any = track.getCapabilities?.() || {};
+        if (caps.torch) setTorchSupported(true);
+
+        // Continuous autofocus when supported
+        if (caps.focusMode?.includes?.("continuous")) {
+          try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }); } catch {}
+        }
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
-          setReady(true);
+          setState(mode === "photo" ? "ready" : "scanning");
         }
 
         if (mode === "barcode" || mode === "qr") {
@@ -59,117 +105,216 @@ export function CameraScanner({ mode, onCapture }: Props) {
               });
               nativeLoop();
               return;
-            } catch {
-              // fall through to zxing
-            }
+            } catch { /* fallthrough */ }
           }
-          // ZXing fallback (works on iOS Safari, Firefox, etc.)
           const hints = new Map();
           hints.set(
             DecodeHintType.POSSIBLE_FORMATS,
             mode === "qr" ? [BarcodeFormat.QR_CODE] : ZXING_BARCODE_FORMATS,
           );
           hints.set(DecodeHintType.TRY_HARDER, true);
-          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 });
+          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
           zxingRef.current = reader;
           if (videoRef.current) {
             reader.decodeFromVideoElement(videoRef.current, (result) => {
-              if (result && !firedRef.current) {
-                firedRef.current = true;
-                fireCode(result.getText());
-              }
+              if (result && !firedRef.current) considerCode(result.getText());
             }).catch(() => {});
           }
         }
       } catch (e: any) {
+        setState("error");
         setError(e?.message || "Camera permission denied");
       }
     })();
 
-    return () => {
-      cancelled = true;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      try { (zxingRef.current as any)?.reset?.(); } catch {}
-      zxingRef.current = null;
-      stream?.getTracks().forEach(t => t.stop());
-    };
+    return () => { cancelled = true; cleanupCamera(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  const fireCode = (code: string) => {
-    navigator.vibrate?.(60);
-    playDetect();
-    setTimeout(() => playSuccess(), 120);
-    onCapture({ code });
-  };
+  const considerCode = useCallback((raw: string) => {
+    if (firedRef.current) return;
+    const code = raw.trim();
+    if (!code) return;
+    const now = Date.now();
+    const cur = candidateRef.current;
+    if (!cur || cur.code !== code || now - cur.firstAt > STABLE_WINDOW_MS) {
+      candidateRef.current = { code, hits: 1, firstAt: now };
+      return;
+    }
+    cur.hits += 1;
+    if (cur.hits >= REQUIRED_HITS) {
+      firedRef.current = true;
+      setState("detected");
+      navigator.vibrate?.([30, 40, 60]);
+      playDetect();
+      setTimeout(() => playSuccess(), 130);
+      // brief visual confirm before handing off
+      setTimeout(() => onCapture({ code }), 180);
+    }
+  }, [onCapture]);
 
   const nativeLoop = async () => {
     if (!videoRef.current || !detectorRef.current || firedRef.current) return;
     try {
       const codes = await detectorRef.current.detect(videoRef.current);
-      if (codes && codes.length > 0) {
-        firedRef.current = true;
-        fireCode(codes[0].rawValue);
-        return;
-      }
+      if (codes && codes.length > 0) considerCode(codes[0].rawValue);
     } catch {}
     rafRef.current = requestAnimationFrame(nativeLoop);
+  };
+
+  const toggleTorch = async () => {
+    const t = trackRef.current; if (!t) return;
+    try {
+      const next = !torchOn;
+      await t.applyConstraints({ advanced: [{ torch: next } as any] });
+      setTorchOn(next);
+      navigator.vibrate?.(15);
+    } catch {
+      setTorchSupported(false);
+    }
+  };
+
+  const handleTapFocus = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const t = trackRef.current; if (!t) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setFocusRing({ x, y });
+    setTimeout(() => setFocusRing(null), 700);
+    const caps: any = t.getCapabilities?.() || {};
+    if (caps.focusMode?.includes?.("single-shot")) {
+      try {
+        await t.applyConstraints({ advanced: [{ focusMode: "single-shot" } as any] });
+        setTimeout(async () => {
+          try { await t.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }); } catch {}
+        }, 600);
+      } catch {}
+    }
+    navigator.vibrate?.(10);
   };
 
   const snapshot = () => {
     const v = videoRef.current; const c = canvasRef.current;
     if (!v || !c || firedRef.current) return;
     firedRef.current = true;
+    setState("captured");
+    primeAudio();
     playShutter();
-    navigator.vibrate?.(40);
+    navigator.vibrate?.([15, 25, 50]);
     c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d")?.drawImage(v, 0, 0);
-    const dataUrl = c.toDataURL("image/jpeg", 0.85);
-    setTimeout(() => playSuccess(), 200);
-    onCapture({ imageBase64: dataUrl });
+    const dataUrl = c.toDataURL("image/jpeg", 0.88);
+    setTimeout(() => playSuccess(), 220);
+    // Brief flash before navigating
+    setTimeout(() => onCapture({ imageBase64: dataUrl }), 250);
   };
 
+  const reticleSize =
+    mode === "qr" ? "w-64 h-64"
+    : mode === "barcode" ? "w-72 h-32"
+    : "w-72 h-72";
+
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-2xl bg-black">
+    <div
+      className="relative w-full h-full overflow-hidden rounded-2xl bg-black select-none"
+      onClick={handleTapFocus}
+    >
       <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
       <canvas ref={canvasRef} className="hidden" />
 
+      {/* Capture flash */}
+      <div
+        className={`pointer-events-none absolute inset-0 bg-white transition-opacity duration-150 ${
+          state === "captured" ? "opacity-80" : "opacity-0"
+        }`}
+      />
+
       {/* Reticle */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className={`relative ${mode === "qr" ? "w-64 h-64" : mode === "barcode" ? "w-72 h-32" : "w-72 h-72"} rounded-2xl border-2 border-primary/80 glow-primary`}>
+        <div
+          className={`relative ${reticleSize} rounded-2xl border-2 transition-all duration-200 ${
+            state === "detected"
+              ? "border-hot scale-95 shadow-[0_0_60px_rgba(34,197,94,0.5)]"
+              : "border-primary/80 glow-primary"
+          }`}
+        >
           <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
-          <div className="absolute left-0 right-0 top-1/2 h-px bg-primary/70 animate-pulse" />
+          {/* Corner ticks */}
+          {(["tl","tr","bl","br"] as const).map((p) => (
+            <span
+              key={p}
+              className={`absolute size-5 border-primary ${
+                p === "tl" ? "top-0 left-0 border-t-2 border-l-2 rounded-tl-2xl" :
+                p === "tr" ? "top-0 right-0 border-t-2 border-r-2 rounded-tr-2xl" :
+                p === "bl" ? "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-2xl" :
+                             "bottom-0 right-0 border-b-2 border-r-2 rounded-br-2xl"
+              }`}
+            />
+          ))}
+          {(mode === "barcode" || mode === "qr") && state !== "detected" && (
+            <div className="absolute left-2 right-2 top-1/2 h-0.5 bg-primary shadow-[0_0_12px_var(--primary)] animate-scanline" />
+          )}
         </div>
       </div>
 
-      {!ready && !error && (
-        <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">
-          Starting camera…
-        </div>
+      {/* Tap-to-focus indicator */}
+      {focusRing && (
+        <div
+          className="pointer-events-none absolute size-16 -ml-8 -mt-8 rounded-full border-2 border-white/90 animate-ping-once"
+          style={{ left: focusRing.x, top: focusRing.y }}
+        />
       )}
-      {error && (
-        <div className="absolute inset-0 grid place-items-center p-6 text-center">
-          <div>
-            <p className="text-destructive font-semibold mb-2">Camera unavailable</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <p className="text-xs text-muted-foreground mt-3">Allow camera access, or upload a photo from the home screen.</p>
+
+      {/* Top-right controls */}
+      {state !== "starting" && torchSupported && (
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleTorch(); }}
+          className={`absolute top-3 right-3 size-10 grid place-items-center rounded-full backdrop-blur-md border transition ${
+            torchOn ? "bg-primary text-primary-foreground border-primary" : "bg-black/40 text-white border-white/20"
+          }`}
+          aria-label="Toggle torch"
+        >
+          {torchOn ? <Zap className="size-5" /> : <ZapOff className="size-5" />}
+        </button>
+      )}
+
+      {state === "starting" && !error && (
+        <div className="absolute inset-0 grid place-items-center text-sm text-white/80 bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2">
+            <Focus className="size-6 animate-pulse text-primary" />
+            <p>Starting camera…</p>
           </div>
         </div>
       )}
 
-      {mode === "photo" && ready && (
+      {error && (
+        <div className="absolute inset-0 grid place-items-center p-6 text-center bg-black/70">
+          <div>
+            <p className="text-destructive font-semibold mb-2">Camera unavailable</p>
+            <p className="text-sm text-white/70">{error}</p>
+            <p className="text-xs text-white/50 mt-3">Allow camera access, or upload a photo from the home screen.</p>
+          </div>
+        </div>
+      )}
+
+      {mode === "photo" && (state === "ready" || state === "captured") && (
         <button
-          onClick={snapshot}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 size-20 rounded-full bg-primary text-primary-foreground glow-primary active:scale-95 transition grid place-items-center font-display font-bold"
+          onClick={(e) => { e.stopPropagation(); snapshot(); }}
+          disabled={state === "captured"}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 size-20 rounded-full bg-white/15 backdrop-blur-md border-4 border-white/90 active:scale-90 transition grid place-items-center disabled:opacity-60"
           aria-label="Capture"
         >
-          SNAP
+          <span className="size-14 rounded-full bg-white shadow-inner" />
         </button>
       )}
 
-      {(mode === "barcode" || mode === "qr") && ready && (
-        <div className="absolute bottom-4 left-4 right-4 text-center text-xs text-white/80 bg-black/40 rounded-xl py-2 backdrop-blur">
-          Hold steady — auto-detecting {mode === "qr" ? "QR code" : "barcode"}…
+      {(mode === "barcode" || mode === "qr") && (state === "scanning" || state === "detected") && (
+        <div className="absolute bottom-4 left-4 right-4 text-center text-xs text-white bg-black/50 rounded-xl py-2 backdrop-blur-md font-medium">
+          {state === "detected" ? (
+            <span className="text-hot font-bold">✓ Detected — analyzing…</span>
+          ) : (
+            <>Hold steady — auto-detecting {mode === "qr" ? "QR code" : "barcode"}…</>
+          )}
         </div>
       )}
     </div>

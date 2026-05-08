@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone } from "lucide-react";
+import { MarketplaceExport } from "@/components/MarketplaceExport";
+import { shareText } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
@@ -56,7 +58,7 @@ function ResultPage() {
   const heroImg = rec.imageUrl || rec.thumbnail;
 
   const share = async () => {
-    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\n${fmt(adjusted.low, rec.currency)}–${fmt(adjusted.high, rec.currency)}\nvia Flip it`;
+    const text = shareText(rec);
     if (navigator.share) { try { await navigator.share({ text }); } catch {} }
     else { navigator.clipboard?.writeText(text); }
   };
@@ -215,7 +217,19 @@ function ResultPage() {
         )}
       </section>
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
+      {!isUnknown && (
+        <MarketplaceExport
+          rec={rec}
+          trigger={
+            <button className="mt-5 w-full rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition glow-primary">
+              <Megaphone className="size-4" />
+              Generate listing for marketplaces
+            </button>
+          }
+        />
+      )}
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <Link to="/scan" search={{ mode: "photo" } as any} className="rounded-xl bg-card border border-border py-3 text-center text-sm font-semibold flex items-center justify-center gap-2">
           <ScanLine className="size-4" /> Scan another
         </Link>
