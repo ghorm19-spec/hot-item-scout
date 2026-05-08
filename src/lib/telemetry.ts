@@ -27,9 +27,10 @@ function write(events: TelemetryEvent[]) {
   try { localStorage.setItem(KEY, JSON.stringify(events.slice(-MAX))); } catch {}
 }
 
-export function track(ev: Omit<TelemetryEvent, "ts"> & { ts?: number }) {
+type TrackInput = Omit<TelemetryEvent, "ts"> & { ts?: number };
+export function track(ev: TrackInput) {
   if (typeof window === "undefined") return;
-  const event = { ...ev, ts: ev.ts ?? Date.now() } as TelemetryEvent;
+  const event = { ...(ev as object), ts: ev.ts ?? Date.now() } as TelemetryEvent;
   const buf = read();
   buf.push(event);
   write(buf);
