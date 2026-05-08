@@ -3,6 +3,8 @@ import { AppShell } from "@/components/AppShell";
 import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame } from "lucide-react";
 import { getHistory } from "@/lib/storage";
 import { useEffect, useState } from "react";
+import { RegionPicker } from "@/components/RegionPicker";
+import { getRegion, type Region } from "@/lib/regions";
 
 export const Route = createFileRoute("/")({
   component: Index,
