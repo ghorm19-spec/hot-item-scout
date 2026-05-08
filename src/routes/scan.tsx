@@ -7,6 +7,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { valuate } from "@/lib/valuate.functions";
 import { computeHotness } from "@/lib/hotness";
 import { saveScan, type ScanRecord } from "@/lib/storage";
+import { getRegion } from "@/lib/regions";
+import { RegionPicker } from "@/components/RegionPicker";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -30,7 +32,8 @@ function ScanPage() {
     if (busy) return;
     setBusy(true); setErr(null);
     try {
-      const v = await valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64 } });
+      const region = getRegion();
+      const v = await valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } });
       const exact = activeMode !== "photo" && !!input.code;
       const hot = computeHotness({
         salesVelocity: v.salesVelocity,
