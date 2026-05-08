@@ -1,14 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, saveScan, type ScanRecord } from "@/lib/storage";
+import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
   head: () => ({ meta: [{ title: "Result — Flip it" }] }),
 });
+
+function confidenceTier(c: number): { label: string; cls: string } {
+  if (c >= 75) return { label: "HIGH", cls: "text-hot border-hot/40 bg-hot/10" };
+  if (c >= 50) return { label: "MEDIUM", cls: "text-warm border-warm/40 bg-warm/10" };
+  return { label: "LOW", cls: "text-cold border-cold/40 bg-cold/10" };
+}
 
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
@@ -45,9 +51,12 @@ function ResultPage() {
 
   const t = tierClass(rec.hotness.tier);
   const maxComp = Math.max(...rec.comps.map(c => c.price), 1);
+  const conf = confidenceTier(rec.confidence);
+  const isUnknown = !!rec.unknown || rec.confidence === 0;
+  const heroImg = rec.imageUrl || rec.thumbnail;
 
   const share = async () => {
-    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\nCAD $${adjusted.low}–$${adjusted.high}\nvia Flip it`;
+    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\n${fmt(adjusted.low, rec.currency)}–${fmt(adjusted.high, rec.currency)}\nvia Flip it`;
     if (navigator.share) { try { await navigator.share({ text }); } catch {} }
     else { navigator.clipboard?.writeText(text); }
   };
@@ -71,10 +80,25 @@ function ResultPage() {
         </button>
       </header>
 
+      {isUnknown && (
+        <div className="mb-3 rounded-2xl border border-cold/40 bg-cold/10 p-4 flex gap-3">
+          <HelpCircle className="size-5 text-cold shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-display font-bold text-cold">Couldn't identify this item</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The AI didn't have enough confidence to value this item. Try better lighting, a closer shot, or rescanning the barcode.
+            </p>
+            <Link to="/scan" search={{ mode: rec.scanType } as any} className="inline-block mt-3 rounded-lg bg-cold/20 text-cold border border-cold/40 px-3 py-1.5 text-xs font-bold">
+              Rescan
+            </Link>
+          </div>
+        </div>
+      )}
+
       <section className={`relative rounded-3xl border bg-card p-5 grain ${t}`}>
         <div className="flex gap-4">
-          {rec.thumbnail ? (
-            <img src={rec.thumbnail} alt={rec.title} className="size-24 rounded-2xl object-cover border border-border" />
+          {heroImg ? (
+            <img src={heroImg} alt={rec.title} className="size-24 rounded-2xl object-cover border border-border bg-secondary" />
           ) : (
             <div className="size-24 rounded-2xl bg-secondary grid place-items-center text-3xl">
               {rec.scanType === "qr" ? "🔳" : rec.scanType === "barcode" ? "▦" : "📦"}
@@ -83,29 +107,53 @@ function ResultPage() {
           <div className="flex-1 min-w-0">
             <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{rec.category}</p>
             <h2 className="font-display font-bold text-lg leading-tight truncate">{rec.title}</h2>
-            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-current/30 px-3 py-1 text-sm font-bold">
-              <span className="text-lg">{rec.hotness.emoji}</span>
-              {rec.hotness.label} · {rec.hotness.score}
+            {rec.brand && <p className="text-xs text-muted-foreground truncate">by {rec.brand}</p>}
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {!isUnknown && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-current/30 px-3 py-1 text-sm font-bold">
+                  <span className="text-lg">{rec.hotness.emoji}</span>
+                  {rec.hotness.label} · {rec.hotness.score}
+                </div>
+              )}
+              {rec.verified && (
+                <div className="inline-flex items-center gap-1 rounded-full border border-hot/40 bg-hot/10 text-hot px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  <ShieldCheck className="size-3" /> Verified
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Resale ({rec.currency || "USD"})</p>
-            <p className="font-display font-black text-3xl">
-              {fmt(adjusted.low, rec.currency)}<span className="text-muted-foreground text-xl"> – </span>{fmt(adjusted.high, rec.currency)}
-            </p>
+        {!isUnknown && (
+          <div className="mt-4 flex items-end justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Resale ({rec.currency || "USD"})</p>
+              <p className="font-display font-black text-3xl">
+                {fmt(adjusted.low, rec.currency)}<span className="text-muted-foreground text-xl"> – </span>{fmt(adjusted.high, rec.currency)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Confidence</p>
+              <div className={`inline-flex items-baseline gap-1.5 px-2 py-0.5 rounded-lg border ${conf.cls}`}>
+                <span className="font-display font-bold text-xl">{rec.confidence}%</span>
+                <span className="text-[10px] font-bold tracking-wider">{conf.label}</span>
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Confidence</p>
-            <p className="font-display font-bold text-xl">{rec.confidence}%</p>
-          </div>
-        </div>
+        )}
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {rec.comps.length} sources cross-validated{rec.code ? ` · code ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
+          {rec.dataSource ? `Source: ${rec.dataSource} · ` : ""}{rec.comps.length} comps{rec.code ? ` · ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
         </p>
       </section>
+
+      {rec.warnings && rec.warnings.length > 0 && !isUnknown && (
+        <div className="mt-3 rounded-2xl border border-warm/40 bg-warm/10 p-3 flex gap-2">
+          <AlertTriangle className="size-4 text-warm shrink-0 mt-0.5" />
+          <ul className="text-xs text-warm space-y-1">
+            {rec.warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       <section className="mt-4 rounded-2xl border border-border bg-card p-4">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Condition</p>

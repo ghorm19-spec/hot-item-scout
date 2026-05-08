@@ -18,6 +18,13 @@ export interface ScanRecord {
   confidence: number;
   flipTip: string;
   neighbourhood?: string;
+  // Phase 1 — accuracy
+  verified?: boolean;          // matched to a verified product DB
+  dataSource?: string;         // e.g. "Open Food Facts", "Open Library", "AI vision"
+  warnings?: string[];         // sanity-check warnings
+  unknown?: boolean;           // AI couldn't identify with reasonable confidence
+  brand?: string;
+  imageUrl?: string;           // verified product image URL (preferred over thumbnail)
 }
 
 const KEY = "scoreflipp.history.v1";
