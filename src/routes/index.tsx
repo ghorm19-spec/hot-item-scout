@@ -20,6 +20,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const navigate = useNavigate();
+  const { t } = useT();
   const [count, setCount] = useState(0);
   const [region, setRegion] = useState<Region | null>(null);
   useEffect(() => { setCount(getHistory().length); setRegion(getRegion()); }, []);
