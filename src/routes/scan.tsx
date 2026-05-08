@@ -15,7 +15,7 @@ export const Route = createFileRoute("/scan")({
   validateSearch: (s: Record<string, unknown>): { mode: Mode } => ({
     mode: (s.mode === "barcode" || s.mode === "qr" ? s.mode : "photo") as Mode,
   }),
-  head: () => ({ meta: [{ title: "Scan — Score Flipp" }] }),
+  head: () => ({ meta: [{ title: "Scan — Flip it" }] }),
 });
 
 function ScanPage() {

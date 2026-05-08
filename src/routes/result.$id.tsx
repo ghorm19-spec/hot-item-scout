@@ -7,7 +7,7 @@ import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine } from "lucide-react";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
-  head: () => ({ meta: [{ title: "Result — Score Flipp" }] }),
+  head: () => ({ meta: [{ title: "Result — Flip it" }] }),
 });
 
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
@@ -47,7 +47,7 @@ function ResultPage() {
   const maxComp = Math.max(...rec.comps.map(c => c.price), 1);
 
   const share = async () => {
-    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\nCAD $${adjusted.low}–$${adjusted.high}\nvia Score Flipp`;
+    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\nCAD $${adjusted.low}–$${adjusted.high}\nvia Flip it`;
     if (navigator.share) { try { await navigator.share({ text }); } catch {} }
     else { navigator.clipboard?.writeText(text); }
   };

@@ -8,7 +8,7 @@ type Sort = "date" | "hotness" | "profit" | "category";
 
 export const Route = createFileRoute("/history")({
   component: HistoryPage,
-  head: () => ({ meta: [{ title: "History — Score Flipp" }] }),
+  head: () => ({ meta: [{ title: "History — Flip it" }] }),
 });
 
 function HistoryPage() {
