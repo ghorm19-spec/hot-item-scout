@@ -114,6 +114,7 @@ function ScanPage() {
       console.error("Valuation failed", e);
       playError();
       navigator.vibrate?.([60, 40, 60]);
+      track({ type: "valuation.error", message: String(e?.message || e) });
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }
