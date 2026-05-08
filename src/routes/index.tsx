@@ -4,7 +4,9 @@ import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame } from "lucide-react"
 import { getHistory } from "@/lib/storage";
 import { useEffect, useState } from "react";
 import { RegionPicker } from "@/components/RegionPicker";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { getRegion, type Region } from "@/lib/regions";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   component: Index,
