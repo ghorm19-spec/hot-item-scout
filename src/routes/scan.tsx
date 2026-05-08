@@ -13,6 +13,7 @@ import { LanguagePicker } from "@/components/LanguagePicker";
 import { useT } from "@/lib/i18n";
 import { validateBarcode } from "@/lib/barcode";
 import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
+import { primeAudio, playError } from "@/lib/sounds";
 
 type Mode = "photo" | "barcode" | "qr";
 
