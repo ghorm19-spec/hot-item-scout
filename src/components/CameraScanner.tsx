@@ -56,6 +56,8 @@ export function CameraScanner({ mode, onCapture }: Props) {
     trackRef.current = null;
   }, []);
 
+  const startCameraRef = useRef<() => Promise<void>>(async () => {});
+
   useEffect(() => {
     let cancelled = false;
     firedRef.current = false;
@@ -64,8 +66,9 @@ export function CameraScanner({ mode, onCapture }: Props) {
     setError(null);
     setTorchOn(false);
     setTorchSupported(false);
+    track({ type: "scan.start", mode });
 
-    (async () => {
+    const start = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -79,16 +82,22 @@ export function CameraScanner({ mode, onCapture }: Props) {
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
-        const track = stream.getVideoTracks()[0];
-        trackRef.current = track;
+        const track0 = stream.getVideoTracks()[0];
+        trackRef.current = track0;
 
-        // Probe torch capability
-        const caps: any = track.getCapabilities?.() || {};
+        // Auto-recover if track ends unexpectedly (OS reclaim, hardware error)
+        track0.addEventListener("ended", () => {
+          track({ type: "camera.lifecycle", event: "track-ended" });
+          if (!cancelled && !firedRef.current) {
+            setState("error");
+            setError("Camera stream lost. Tap retry.");
+          }
+        });
+
+        const caps: any = track0.getCapabilities?.() || {};
         if (caps.torch) setTorchSupported(true);
-
-        // Continuous autofocus when supported
         if (caps.focusMode?.includes?.("continuous")) {
-          try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }); } catch {}
+          try { await track0.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }); } catch {}
         }
 
         if (videoRef.current) {
@@ -123,14 +132,48 @@ export function CameraScanner({ mode, onCapture }: Props) {
           }
         }
       } catch (e: any) {
+        track({ type: "camera.lifecycle", event: "permission-error" });
         setState("error");
         setError(e?.message || "Camera permission denied");
       }
-    })();
+    };
+    startCameraRef.current = start;
+    start();
 
-    return () => { cancelled = true; cleanupCamera(); };
+    // Mobile lifecycle: pause on tab hidden, resume on visible
+    const onVisibility = () => {
+      if (document.hidden) {
+        track({ type: "camera.lifecycle", event: "hidden" });
+        cleanupCamera();
+      } else if (!firedRef.current) {
+        track({ type: "camera.lifecycle", event: "visible-resume" });
+        start();
+      }
+    };
+    const onOrientation = () => {
+      track({ type: "camera.lifecycle", event: "orientation" });
+      // Re-apply continuous AF after orientation change
+      const t = trackRef.current;
+      if (t) { try { t.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }); } catch {} }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("orientationchange", onOrientation);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("orientationchange", onOrientation);
+      cleanupCamera();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  const retry = useCallback(() => {
+    cleanupCamera();
+    setError(null);
+    setState("starting");
+    startCameraRef.current?.();
+  }, [cleanupCamera]);
 
   const considerCode = useCallback((raw: string) => {
     if (firedRef.current) return;
