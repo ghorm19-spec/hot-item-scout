@@ -62,7 +62,7 @@ export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
                 />
               </label>
               <p className="mt-2 text-[11px] text-muted-foreground">
-                We use your region to price in local currency and prioritize nearby resale markets.
+                {t("region.help")}
               </p>
             </div>
 
