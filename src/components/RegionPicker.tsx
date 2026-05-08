@@ -57,7 +57,7 @@ export function RegionPicker({ onChange }: { onChange?: (r: Region) => void }) {
                   autoFocus
                   value={q}
                   onChange={e => setQ(e.target.value)}
-                  placeholder="Search country or currency"
+                  placeholder={t("region.search")}
                   className="flex-1 bg-transparent outline-none text-sm"
                 />
               </label>
