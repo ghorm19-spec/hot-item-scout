@@ -5,6 +5,12 @@ export interface ValuationInput {
   code?: string;          // barcode / qr payload
   imageBase64?: string;   // data url or raw base64
   notes?: string;
+  region?: {
+    code: string;         // ISO country code
+    name: string;
+    currency: string;     // ISO 4217
+    markets: string[];    // local marketplaces to prioritize
+  };
 }
 
 export interface ValuationOutput {
@@ -26,12 +32,13 @@ export interface ValuationOutput {
 }
 
 const SYSTEM = `You are Flip it, a global expert resale valuation engine for thrift, vintage, and used goods worldwide.
-Price in the most relevant local currency for the item's strongest resale market (USD, EUR, GBP, CAD, AUD, JPY, etc.) and always return the ISO currency code.
-Surface demand by cross-referencing the world's largest resale marketplaces relevant to the item: eBay (.com/.co.uk/.de/.ca/.com.au), Mercari (US/JP), Depop, Poshmark, Vinted, Grailed, StockX, GOAT, Facebook Marketplace, Kijiji, Gumtree, Yahoo Auctions Japan, Discogs, Reverb, Catawiki, Chrono24, Vestiaire Collective, Etsy, Amazon, Whatnot.
-Identify globally hot resale categories: sneakers, streetwear, designer/luxury, vintage denim, Y2K, vinyl records, trading cards (Pokémon, sports, MTG), retro video games & consoles, vintage tech, watches, cameras, tools, outdoor gear, mid-century furniture, designer toys.
-If input is a barcode (UPC/EAN/ISBN) treat it as an exact product match — be specific. If QR, parse it as a product link or inventory tag.
-Set torontoBoost=true only when the item has a strong regional demand spike (any city/region globally) and put that location in neighbourhood (e.g. "Tokyo", "Brooklyn NY", "Berlin Mitte").
-Return ONLY a JSON tool call. Be realistic, not optimistic. If unknown, give a wide range and lower confidence.`;
+When the user provides a region, ALWAYS price in that region's currency and prioritize the local marketplaces they list (e.g. Facebook Marketplace, Kijiji, Leboncoin, Vinted, Mercari JP, Yahoo Auctions JP, Carousell, Wallapop, Allegro, Sahibinden, Avito, OLX, Mercado Libre, Gumtree, Trade Me, Dubizzle, Yad2, Tokopedia, Shopee, Lazada, Karrot, Xianyu, etc.).
+Cross-validate with global marketplaces (eBay, Amazon, Etsy, Discogs, StockX, GOAT, Grailed, Vestiaire Collective, Catawiki, Chrono24, Reverb, Whatnot) and adjust for local demand and shipping reality.
+Comps array: include AT LEAST 5 entries, mix of local + global marketplaces, all converted to the user's local currency.
+Hot resale categories worldwide: sneakers, streetwear, designer/luxury, vintage denim, Y2K, vinyl records, trading cards (Pokémon, sports, MTG), retro video games & consoles, vintage tech, watches, cameras, tools, outdoor gear, mid-century furniture, designer toys.
+Barcode (UPC/EAN/ISBN) = exact product match — be specific. QR = parse as product link or inventory tag.
+Set torontoBoost=true only when the item has a strong regional demand spike and put that city/region in neighbourhood (e.g. "Tokyo", "Brooklyn NY", "Berlin Mitte"). Prefer cities inside the user's region when relevant.
+Return ONLY a JSON tool call. Be realistic, not optimistic. If unknown, widen the range and lower confidence.`;
 
 const TOOL = {
   type: "function" as const,
@@ -87,7 +94,11 @@ export const valuate = createServerFn({ method: "POST" })
     let userText = `Scan type: ${data.scanType}.`;
     if (data.code) userText += ` Code/payload: ${data.code}.`;
     if (data.notes) userText += ` Notes: ${data.notes}.`;
-    userText += " Identify the item and return a global resale valuation in the most relevant local currency.";
+    if (data.region) {
+      userText += ` User is in ${data.region.name} (${data.region.code}). Price in ${data.region.currency}. Prioritize comps from these LOCAL marketplaces: ${data.region.markets.join(", ")}. Cross-check with global marketplaces (eBay, Amazon, Etsy, Discogs, StockX, GOAT, Grailed, Vestiaire Collective, Catawiki, Chrono24, Reverb, Whatnot) for fair value, but final price MUST be in ${data.region.currency} and reflect local resale demand.`;
+    } else {
+      userText += " Identify the item and return a global resale valuation in the most relevant local currency.";
+    }
     userParts.push({ type: "text", text: userText });
 
     if (data.imageBase64) {
