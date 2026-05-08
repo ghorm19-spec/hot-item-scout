@@ -1,14 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, saveScan, type ScanRecord } from "@/lib/storage";
+import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
   head: () => ({ meta: [{ title: "Result — Flip it" }] }),
 });
+
+function confidenceTier(c: number): { label: string; cls: string } {
+  if (c >= 75) return { label: "HIGH", cls: "text-hot border-hot/40 bg-hot/10" };
+  if (c >= 50) return { label: "MEDIUM", cls: "text-warm border-warm/40 bg-warm/10" };
+  return { label: "LOW", cls: "text-cold border-cold/40 bg-cold/10" };
+}
 
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
