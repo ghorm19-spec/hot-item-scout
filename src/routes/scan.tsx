@@ -11,6 +11,8 @@ import { getRegion } from "@/lib/regions";
 import { RegionPicker } from "@/components/RegionPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { useT } from "@/lib/i18n";
+import { validateBarcode } from "@/lib/barcode";
+import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -33,11 +35,25 @@ function ScanPage() {
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
+
+    // Pre-validate barcode client-side: bail fast on misreads instead of paying for AI hallucination.
+    if (activeMode === "barcode" && input.code) {
+      const v = validateBarcode(input.code);
+      if (!v.valid && v.kind !== "OTHER") {
+        setErr("That barcode looks like a misread. Hold steady and try again.");
+        return;
+      }
+    }
+
     setBusy(true); setErr(null);
     try {
       const region = getRegion();
-      const v = await valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } });
-      const exact = activeMode !== "photo" && !!input.code;
+      const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
+      const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
+      const v = cached || await valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } });
+      if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
+
+      const exact = activeMode !== "photo" && !!input.code && v.verified;
       const hot = computeHotness({
         salesVelocity: v.salesVelocity,
         marginPotential: v.marginPotential,
@@ -59,9 +75,15 @@ function ScanPage() {
         condition: v.condition,
         comps: v.comps,
         hotness: hot,
-        confidence: Math.min(100, v.confidence + (hot.confidenceBonus || 0)),
+        confidence: v.unknown ? 0 : Math.min(100, v.confidence + (hot.confidenceBonus || 0)),
         flipTip: v.flipTip,
         neighbourhood: v.neighbourhood,
+        verified: v.verified,
+        dataSource: v.dataSource,
+        warnings: v.warnings,
+        unknown: v.unknown,
+        brand: v.brand,
+        imageUrl: v.imageUrl,
       };
       saveScan(rec);
       navigate({ to: "/result/$id", params: { id: rec.id } });
