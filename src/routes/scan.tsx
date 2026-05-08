@@ -41,6 +41,8 @@ function ScanPage() {
     if (activeMode === "barcode" && input.code) {
       const v = validateBarcode(input.code);
       if (!v.valid && v.kind !== "OTHER") {
+        playError();
+        navigator.vibrate?.([60, 40, 60]);
         setErr("That barcode looks like a misread. Hold steady and try again.");
         return;
       }
