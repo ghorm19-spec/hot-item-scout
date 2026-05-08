@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { shareText } from "@/lib/marketplace";
 
@@ -17,6 +17,13 @@ function confidenceTier(c: number): { label: string; cls: string } {
   if (c >= 50) return { label: "MEDIUM", cls: "text-warm border-warm/40 bg-warm/10" };
   return { label: "LOW", cls: "text-cold border-cold/40 bg-cold/10" };
 }
+
+const TIER_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
+  VERIFIED:    { label: "VERIFIED MATCH",  cls: "text-hot border-hot/40 bg-hot/10",   icon: ShieldCheck },
+  ESTIMATE:    { label: "AI ESTIMATE",     cls: "text-warm border-warm/40 bg-warm/10", icon: Sparkles },
+  SPECULATIVE: { label: "SPECULATIVE",     cls: "text-cold border-cold/40 bg-cold/10", icon: AlertTriangle },
+  UNKNOWN:     { label: "UNIDENTIFIED",    cls: "text-cold border-cold/40 bg-cold/10", icon: HelpCircle },
+};
 
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
