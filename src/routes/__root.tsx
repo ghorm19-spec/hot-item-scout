@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/BottomNav";
+import { useEffect } from "react";
+import { applyDir } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -114,6 +116,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => { applyDir(); }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

@@ -9,6 +9,8 @@ import { computeHotness } from "@/lib/hotness";
 import { saveScan, type ScanRecord } from "@/lib/storage";
 import { getRegion } from "@/lib/regions";
 import { RegionPicker } from "@/components/RegionPicker";
+import { LanguagePicker } from "@/components/LanguagePicker";
+import { useT } from "@/lib/i18n";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/scan")({
 function ScanPage() {
   const { mode } = Route.useSearch();
   const navigate = useNavigate();
+  const { t } = useT();
   const [activeMode, setActiveMode] = useState<Mode>(mode);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -83,7 +86,8 @@ function ScanPage() {
           <ArrowLeft className="size-4" />
         </button>
         <div className="flex items-center gap-2">
-          <h1 className="font-display font-bold">Scan</h1>
+          <h1 className="font-display font-bold">{t("scan.title")}</h1>
+          <LanguagePicker />
           <RegionPicker />
         </div>
         <label className="size-9 grid place-items-center rounded-full bg-card border border-border cursor-pointer">
@@ -93,9 +97,9 @@ function ScanPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <ModeTab icon={<Camera className="size-4" />}   label="Photo"   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
-        <ModeTab icon={<ScanLine className="size-4" />} label="Barcode" active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
-        <ModeTab icon={<QrCode className="size-4" />}   label="QR"      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
+        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => setActiveMode("photo")} />
+        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => setActiveMode("barcode")} />
+        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => setActiveMode("qr")} />
       </div>
 
       <div className="aspect-[3/4] w-full">
@@ -103,17 +107,17 @@ function ScanPage() {
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground text-center">
-        {activeMode === "photo" && "Frame the item, then tap SNAP."}
-        {activeMode === "barcode" && "Hold steady — barcode auto-detects."}
-        {activeMode === "qr" && "Point at the QR code — auto-detects."}
+        {activeMode === "photo" && t("scan.hint.photo")}
+        {activeMode === "barcode" && t("scan.hint.barcode")}
+        {activeMode === "qr" && t("scan.hint.qr")}
       </p>
 
       {busy && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm">
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col items-center gap-3 glow-primary">
             <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="font-display font-bold">Scoring your find…</p>
-            <p className="text-xs text-muted-foreground">Cross-checking local + global comps</p>
+            <p className="font-display font-bold">{t("scan.scoring")}</p>
+            <p className="text-xs text-muted-foreground">{t("scan.scoring.sub")}</p>
           </div>
         </div>
       )}
