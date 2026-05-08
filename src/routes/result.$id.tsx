@@ -58,7 +58,7 @@ function ResultPage() {
   const heroImg = rec.imageUrl || rec.thumbnail;
 
   const share = async () => {
-    const text = `${rec.title} — ${rec.hotness.emoji} ${rec.hotness.label} (score ${rec.hotness.score})\n${fmt(adjusted.low, rec.currency)}–${fmt(adjusted.high, rec.currency)}\nvia Flip it`;
+    const text = shareText(rec);
     if (navigator.share) { try { await navigator.share({ text }); } catch {} }
     else { navigator.clipboard?.writeText(text); }
   };
