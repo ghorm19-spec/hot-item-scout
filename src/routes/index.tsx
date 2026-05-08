@@ -37,11 +37,12 @@ function Index() {
             <p className="font-display font-bold leading-none">Flip it</p>
             <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
               <MapPin className="size-3 shrink-0" />
-              {region ? `${region.name} · ${region.currency}` : "Global · Local currency"}
+              {region ? `${region.name} · ${region.currency}` : t("app.tagline_global")}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <LanguagePicker />
           <RegionPicker onChange={(r) => setRegion(r)} />
           <Link to="/history" className="text-xs text-muted-foreground whitespace-nowrap">
             {count}
@@ -51,39 +52,39 @@ function Index() {
 
       <section className="relative mt-4 rounded-3xl overflow-hidden p-6 grain bg-gradient-to-br from-secondary via-card to-secondary border border-border">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary font-semibold">
-          <Sparkles className="size-3.5" /> AI-powered · Worldwide
+          <Sparkles className="size-3.5" /> {t("home.badge")}
         </div>
         <h1 className="mt-3 text-4xl font-display font-black leading-[1.05]">
-          Scan it. <br />
-          <span className="text-primary">Score it.</span> Flip it.
+          {t("home.title.scan")} <br />
+          <span className="text-primary">{t("home.title.score")}</span> {t("home.title.flip")}
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Snap a thrift find anywhere in the world — get a real local-currency price, demand Hotness, and a flip plan in seconds.
+          {t("home.lead")}
         </p>
 
         <button
           onClick={() => go("photo")}
           className="mt-6 w-full rounded-2xl bg-primary text-primary-foreground py-5 font-display font-bold text-lg active:scale-[0.99] transition glow-primary flex items-center justify-center gap-3"
         >
-          <Camera className="size-6" /> Scan Now
+          <Camera className="size-6" /> {t("home.cta")}
         </button>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <ModeBtn label="Photo"  icon={<Camera className="size-5" />}  onClick={() => go("photo")} />
-          <ModeBtn label="Barcode" icon={<ScanLine className="size-5" />} onClick={() => go("barcode")} />
-          <ModeBtn label="QR"      icon={<QrCode className="size-5" />}   onClick={() => go("qr")} />
+          <ModeBtn label={t("mode.photo")}  icon={<Camera className="size-5" />}  onClick={() => go("photo")} />
+          <ModeBtn label={t("mode.barcode")} icon={<ScanLine className="size-5" />} onClick={() => go("barcode")} />
+          <ModeBtn label={t("mode.qr")}      icon={<QrCode className="size-5" />}   onClick={() => go("qr")} />
         </div>
       </section>
 
       <section className="mt-5 grid grid-cols-3 gap-2">
-        <Stat tier="hot"  emoji="🚀" label="HIGH" sub=">70 score" />
-        <Stat tier="warm" emoji="⚡" label="MED"  sub="35–70" />
-        <Stat tier="cold" emoji="❄️" label="LOW"  sub="<35" />
+        <Stat tier="hot"  emoji="🚀" label={t("tier.high")} sub={t("tier.high.sub")} />
+        <Stat tier="warm" emoji="⚡" label={t("tier.med")}  sub={t("tier.med.sub")} />
+        <Stat tier="cold" emoji="❄️" label={t("tier.low")}  sub={t("tier.low.sub")} />
       </section>
 
       <section className="mt-6">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1">
-          <Flame className="size-3.5 text-accent" /> Hot worldwide right now
+          <Flame className="size-3.5 text-accent" /> {t("home.hot_title")}
         </p>
         <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-none snap-x snap-mandatory">
           {[
