@@ -271,7 +271,7 @@ function ResultPage() {
         )}
       </section>
 
-      {!isUnknown && (
+      {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
         <MarketplaceExport
           rec={rec}
           trigger={
