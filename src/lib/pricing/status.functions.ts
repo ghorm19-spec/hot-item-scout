@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface ProviderStatus {
   ebay: { connected: boolean; envVar: string };
@@ -7,6 +8,7 @@ export interface ProviderStatus {
 }
 
 export const getPricingProviderStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .handler(async (): Promise<ProviderStatus> => {
     const has = (k: string) => !!(process.env[k] && String(process.env[k]).trim());
     return {
