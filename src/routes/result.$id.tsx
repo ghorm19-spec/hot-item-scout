@@ -363,15 +363,127 @@ function ResultPage() {
         />
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Link to="/scan" search={{ mode: "photo" } as any} className="rounded-xl bg-card border border-border py-3 text-center text-sm font-semibold flex items-center justify-center gap-2">
-          <ScanLine className="size-4" /> Scan another
-        </Link>
-        <Link to="/history" className="rounded-xl bg-primary text-primary-foreground py-3 text-center text-sm font-bold">
+      <div className="mt-4 flex flex-col gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || saved}
+          aria-disabled={saving || saved}
+          className={`w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 transition ${
+            saved
+              ? "bg-hot/15 text-hot border border-hot/40 cursor-default"
+              : saving
+                ? "bg-primary/70 text-primary-foreground cursor-wait"
+                : "bg-primary text-primary-foreground glow-primary active:scale-[0.99]"
+          }`}
+        >
+          {saved ? (
+            <><Check className="size-4" /> Saved</>
+          ) : saving ? (
+            <><Loader2 className="size-4 animate-spin" /> Saving…</>
+          ) : (
+            <><Bookmark className="size-4" /> Save to my flips</>
+          )}
+        </button>
+
+        <button
+          onClick={() => navigate({ to: "/scan", search: { mode: rec.scanType } as any })}
+          className="w-full rounded-2xl bg-card border border-border py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition"
+        >
+          <ScanLine className="size-4" /> Scan Another Item
+        </button>
+
+        <Link
+          to="/history"
+          className="w-full rounded-2xl bg-secondary text-foreground py-3 text-center text-sm font-semibold"
+        >
           View history
         </Link>
       </div>
     </AppShell>
+  );
+}
+
+function PriceContextBar({
+  buyPrice, low, mid, high, currency, live,
+}: { buyPrice: number; low: number; mid: number; high: number; currency: string; live?: boolean }) {
+  // Bar spans from $0 to high * 1.05 for a touch of headroom.
+  const max = high * 1.05;
+  // Break-even: sell price where net proceeds ≈ buyPrice (approx 16% fees + $0.60 fixed).
+  const breakEven = buyPrice > 0 ? buyPrice / 0.84 + 0.6 : 0;
+  const pct = (v: number) => Math.max(0, Math.min(100, (v / max) * 100));
+  const buyPct = buyPrice > 0 ? pct(buyPrice) : null;
+  const breakEvenPct = breakEven > 0 ? pct(breakEven) : 0;
+  const lowPct = pct(low);
+  const midPct = pct(mid);
+  const highPct = pct(high);
+
+  return (
+    <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Market price range</p>
+        {live && (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold text-hot border border-hot/40 bg-hot/10 px-1.5 py-0.5 rounded">
+            <Activity className="size-2.5" /> Live data
+          </span>
+        )}
+      </div>
+
+      {/* Bar */}
+      <div className="relative h-3 rounded-full overflow-hidden bg-secondary border border-border">
+        {/* Red zone — loss territory (0 → break-even) */}
+        {breakEvenPct > 0 && (
+          <div
+            className="absolute inset-y-0 left-0 bg-cold/40"
+            style={{ width: `${breakEvenPct}%` }}
+          />
+        )}
+        {/* Green zone — profit window (break-even → high) */}
+        <div
+          className="absolute inset-y-0 bg-hot/50"
+          style={{ left: `${breakEvenPct}%`, width: `${Math.max(0, highPct - breakEvenPct)}%` }}
+        />
+        {/* Tick: resale low */}
+        <div
+          className="absolute inset-y-0 w-px bg-foreground/40"
+          style={{ left: `${lowPct}%` }}
+        />
+        {/* Tick: resale mid (avg) */}
+        <div
+          className="absolute inset-y-0 w-0.5 bg-foreground"
+          style={{ left: `${midPct}%` }}
+        />
+        {/* Buy-price marker dot */}
+        {buyPct !== null && (
+          <div
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 size-3.5 rounded-full bg-primary border-2 border-background shadow-[0_0_0_2px] shadow-primary/40"
+            style={{ left: `${buyPct}%` }}
+            aria-label="Your buy price"
+          />
+        )}
+      </div>
+
+      {/* Labels */}
+      <div className="mt-2 flex items-center justify-between text-[10px]">
+        <div className="flex flex-col items-start">
+          <span className="text-muted-foreground uppercase tracking-wider">Price paid</span>
+          <span className="font-display font-bold">{buyPrice > 0 ? fmt(buyPrice, currency) : "—"}</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-muted-foreground uppercase tracking-wider">Avg resale</span>
+          <span className="font-display font-bold">{fmt(mid, currency)}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-muted-foreground uppercase tracking-wider">High end</span>
+          <span className="font-display font-bold">{fmt(high, currency)}</span>
+        </div>
+      </div>
+
+      {buyPrice > 0 && (
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          Break-even sell price ≈ <span className="font-bold text-foreground">{fmt(breakEven, currency)}</span> after fees.
+        </p>
+      )}
+    </section>
   );
 }
 
