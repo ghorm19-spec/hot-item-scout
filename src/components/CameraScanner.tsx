@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
 import { Zap, ZapOff, Focus, RefreshCw, Sun } from "lucide-react";
 import { track } from "@/lib/telemetry";
+import * as Sentry from "@sentry/react";
 
 type ScanMode = "photo" | "barcode" | "qr";
 type ScanState = "starting" | "ready" | "scanning" | "detected" | "captured" | "error";
@@ -105,6 +106,9 @@ export function CameraScanner({ mode, onCapture }: Props) {
         }
       } catch (e: any) {
         track({ type: "camera.lifecycle", event: "permission-error" });
+        try {
+          Sentry.captureException(e, { extra: { context: "camera_init" } });
+        } catch {}
         setState("error");
         setError(e?.message || "Camera permission denied");
       }
