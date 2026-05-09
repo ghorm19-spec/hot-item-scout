@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, saveScan, type ScanRecord } from "@/lib/storage";
+import { getHistory, saveScan, saveScanAsync, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck } from "lucide-react";
+import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck, Bookmark, Check, Loader2, Activity } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { ShareMenu } from "@/components/ShareMenu";
 import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
