@@ -16,6 +16,7 @@ import { primeAudio, playError } from "@/lib/sounds";
 import { track } from "@/lib/telemetry";
 import { withRetry, isOnline } from "@/lib/network";
 import * as Sentry from "@sentry/react";
+import { useAuth } from "@/lib/auth";
 
 type Mode = "photo" | "barcode" | "qr";
 
