@@ -218,10 +218,10 @@ export function CameraScanner({ mode, onCapture }: Props) {
                 decodePendingRef.current = true;
                 lastDecodeAtRef.current = now;
                 const id = ++decodeIdRef.current;
+                const buffer = imageData.data.buffer;
                 workerRef.current.postMessage(
-                  { type: "decode", id, mode: decodeMode, imageData },
-                  // Transfer the underlying buffer to avoid copy.
-                  [imageData.data.buffer],
+                  { type: "decode", id, mode: decodeMode, buffer, width: dw, height: dh },
+                  [buffer],
                 );
               } catch {
                 decodePendingRef.current = false;
