@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { generateListings, listingToText, platformFeeLabel, type Marketplace } from "@/lib/marketplace";
 import type { ScanRecord } from "@/lib/storage";
-import { Copy, Check, Share2, ShoppingBag, AlertTriangle, ShieldCheck, Info } from "lucide-react";
+import { Copy, Check, Share2, ShoppingBag, AlertTriangle, ShieldCheck, Info, Facebook, Store } from "lucide-react";
+import { buildShareTargets, openShareWindow } from "@/lib/share";
 
 const MARKETS: { key: Marketplace; label: string; color: string }[] = [
   { key: "ebay",     label: "eBay",     color: "text-warm" },
@@ -147,6 +148,23 @@ export function MarketplaceExport({ rec, trigger }: { rec: ScanRecord; trigger: 
             <Share2 className="size-4" /> Share
           </button>
         </div>
+
+        {active === "facebook" && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => openShareWindow(buildShareTargets(rec).fbShare)}
+              className="rounded-xl bg-cold/15 border border-cold/40 text-cold py-3 font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition"
+            >
+              <Facebook className="size-4" /> Share to Facebook
+            </button>
+            <button
+              onClick={async () => { await copy(); openShareWindow(buildShareTargets(rec).fbMarketplace); }}
+              className="rounded-xl bg-primary/15 border border-primary/40 text-primary py-3 font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition"
+            >
+              <Store className="size-4" /> List on Marketplace
+            </button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
