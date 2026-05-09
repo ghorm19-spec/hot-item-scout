@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CameraScanner } from "@/components/CameraScanner";
-import { Camera, ScanLine, QrCode, Upload, ArrowLeft, Loader2, RefreshCw, Home } from "lucide-react";
+import { Camera, ScanLine, QrCode, Upload, ArrowLeft, Loader2, RefreshCw, Home, HelpCircle, PenLine } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { valuate } from "@/lib/valuate.functions";
 import { computeHotness } from "@/lib/hotness";
@@ -38,12 +38,29 @@ function ScanPage() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
   const [scannerMounted, setScannerMounted] = useState(true);
-  const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string } | null>(null);
+  const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string; notes?: string } | null>(null);
+  const [noResult, setNoResult] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualCondition, setManualCondition] = useState<ScanRecord["condition"]>("Good");
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const valuateFn = useServerFn(valuate);
   const { user, loading: authLoading } = useAuth();
   const signedOut = !authLoading && !user;
-  // Camera is "active" whenever the scanner is the foreground UI (no busy overlay, no error card)
-  const cameraActive = !busy && !err;
+  // Camera is "active" whenever the scanner is the foreground UI (no overlay open)
+  const cameraActive = !busy && !err && !noResult && !manualOpen && !showOnboarding;
+
+  // First-run onboarding overlay
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      if (!localStorage.getItem("flip_onboarded")) setShowOnboarding(true);
+    } catch {}
+  }, []);
+  const dismissOnboarding = () => {
+    try { localStorage.setItem("flip_onboarded", "1"); } catch {}
+    setShowOnboarding(false);
+  };
 
   const requireAuth = () => {
     setNeedsAuth(true);
@@ -54,6 +71,8 @@ function ScanPage() {
     setErr(null);
     setNeedsAuth(false);
     setBusy(false);
+    setNoResult(false);
+    setManualOpen(false);
     // Unmount first so cleanupCamera() runs and the MediaStream tracks are released,
     // then wait 300ms before remounting so the OS fully frees the camera before reinit.
     setScannerMounted(false);
@@ -63,10 +82,11 @@ function ScanPage() {
     }, 300);
   };
 
-  const handleResult = async (input: { code?: string; imageBase64?: string }) => {
+  const handleResult = async (input: { code?: string; imageBase64?: string; notes?: string }) => {
     if (busy) return;
     if (signedOut) { requireAuth(); return; }
     setLastInput(input);
+    setNoResult(false);
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
 
@@ -100,10 +120,20 @@ function ScanPage() {
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
       const v = cached || await withRetry(
-        () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
+        () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, notes: input.notes, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
         { retries: 2 },
       );
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
+
+      // Photo no-result state — when AI couldn't recognize the item OR confidence is low,
+      // show the recovery card instead of saving a near-empty record.
+      const lowConfidence = !v.unknown && (v.confidence ?? 0) < 35;
+      if (activeMode === "photo" && !input.notes && (v.unknown || lowConfidence)) {
+        track({ type: "valuation.error", message: v.unknown ? "no_match" : "low_confidence" });
+        setNoResult(true);
+        setBusy(false);
+        return;
+      }
 
       const exact = activeMode !== "photo" && !!input.code && v.verified;
       const hot = computeHotness({
@@ -313,6 +343,144 @@ function ScanPage() {
           </div>
         </div>
       )}
+
+      {/* No-result state for photo scans (low confidence / unrecognised) */}
+      {noResult && !manualOpen && (
+        <div className="absolute inset-0 z-[106] grid place-items-center p-6 bg-black/75 backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-2xl border border-warm/40 bg-card text-card-foreground p-5 shadow-2xl">
+            <p className="font-display font-bold text-base mb-1">We couldn't identify this item clearly</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Try a sharper, well-lit photo — or enter the item details manually.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={restartScanner}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold active:scale-95 transition"
+              >
+                <RefreshCw className="size-4" /> Try Again
+              </button>
+              <button
+                onClick={() => { setManualName(""); setManualCondition("Good"); setManualOpen(true); }}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-secondary-foreground px-4 py-2.5 text-sm font-semibold active:scale-95 transition"
+              >
+                <PenLine className="size-4" /> Enter manually
+              </button>
+              <button
+                onClick={() => navigate({ to: "/" })}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold active:scale-95 transition"
+              >
+                <Home className="size-4" /> Go home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual entry — passes through valuate() via the notes field */}
+      {manualOpen && (
+        <div className="absolute inset-0 z-[107] grid place-items-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card text-card-foreground p-5 shadow-2xl">
+            <p className="font-display font-bold text-base mb-3">Tell us what it is</p>
+            <label className="block text-[11px] uppercase tracking-widest text-muted-foreground mb-1">Item name</label>
+            <input
+              type="text"
+              value={manualName}
+              onChange={(e) => setManualName(e.target.value)}
+              maxLength={120}
+              placeholder="e.g. Nike Dunk Low Panda, size 10"
+              className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm mb-3 outline-none focus:border-primary"
+              autoFocus
+            />
+            <label className="block text-[11px] uppercase tracking-widest text-muted-foreground mb-1">Condition</label>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {(["Poor", "Fair", "Good", "Excellent"] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setManualCondition(c)}
+                  className={`rounded-lg py-2 text-xs font-semibold border transition ${manualCondition === c ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border"}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  const name = manualName.trim();
+                  if (!name) return;
+                  const notes = `Manual entry. Item: ${name}. Condition: ${manualCondition}.`;
+                  setManualOpen(false);
+                  setNoResult(false);
+                  // Route through the existing valuation function — note: scanType stays "photo"
+                  // but no image is sent; valuate() reads notes directly.
+                  handleResult({ notes });
+                }}
+                disabled={!manualName.trim()}
+                className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold active:scale-95 transition disabled:opacity-50"
+              >
+                Get valuation
+              </button>
+              <button
+                onClick={() => setManualOpen(false)}
+                className="w-full rounded-xl border border-border bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold active:scale-95 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* First-run onboarding tooltips */}
+      {showOnboarding && (
+        <OnboardingOverlay onDismiss={dismissOnboarding} />
+      )}
+    </div>
+  );
+}
+
+function OnboardingOverlay({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="absolute inset-0 z-[120] bg-black/70 backdrop-blur-[2px]">
+      {/* Top tip — mode tabs are at the bottom on this layout, but the hint anchors to the top label */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 max-w-[280px] w-[80%] rounded-2xl bg-card text-card-foreground border border-primary/40 p-3 shadow-2xl"
+        style={{ top: "max(env(safe-area-inset-top), 16px)", marginTop: 56 }}
+      >
+        <p className="text-[11px] uppercase tracking-widest text-primary font-bold mb-1">Viewfinder</p>
+        <p className="text-sm">Point at any item — shoes, clothes, records, electronics.</p>
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 size-3 rotate-45 bg-card border-l border-t border-primary/40" />
+      </div>
+
+      {/* Middle tip — capture button area */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[280px] w-[80%] rounded-2xl bg-card text-card-foreground border border-primary/40 p-3 shadow-2xl">
+        <p className="text-[11px] uppercase tracking-widest text-primary font-bold mb-1">Capture</p>
+        <p className="text-sm">Tap the shutter to scan and get the resale price instantly.</p>
+      </div>
+
+      {/* Bottom tip — mode tabs */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 max-w-[280px] w-[80%] rounded-2xl bg-card text-card-foreground border border-primary/40 p-3 shadow-2xl"
+        style={{ bottom: "max(env(safe-area-inset-bottom), 20px)", marginBottom: 110 }}
+      >
+        <p className="text-[11px] uppercase tracking-widest text-primary font-bold mb-1">Modes</p>
+        <p className="text-sm">Switch between Photo, Barcode and QR down here.</p>
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-3 rotate-45 bg-card border-r border-b border-primary/40" />
+      </div>
+
+      {/* Got it */}
+      <div
+        className="absolute left-0 right-0 flex justify-center"
+        style={{ bottom: "max(env(safe-area-inset-bottom), 20px)", paddingBottom: 24 }}
+      >
+        <button
+          onClick={onDismiss}
+          className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-bold shadow-2xl glow-primary active:scale-95 transition"
+        >
+          <HelpCircle className="size-4" /> Got it
+        </button>
+      </div>
     </div>
   );
 }
