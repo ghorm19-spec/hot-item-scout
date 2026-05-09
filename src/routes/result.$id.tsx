@@ -10,6 +10,8 @@ import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 import { toast } from "sonner";
 import { analytics } from "@/lib/telemetry";
 import { getRegion } from "@/lib/regions";
+import { buildSellStrategy, formatPrice as fmtP } from "@/lib/sellStrategy";
+import { Clock, Flame } from "lucide-react";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
@@ -388,15 +390,63 @@ function ResultPage() {
         </section>
       )}
 
-      <section className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 glow-primary">
-        <p className="text-xs uppercase tracking-widest text-primary mb-1">Flip strategy</p>
-        <p className="text-sm">{rec.flipTip}</p>
-        {rec.neighbourhood && (
-          <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-            <MapPin className="size-3" /> Trending in {rec.neighbourhood}
-          </p>
-        )}
-      </section>
+      {(() => {
+        const region = (() => { try { return getRegion(); } catch { return null; } })();
+        const strategies = region ? buildSellStrategy(rec, region) : [];
+        if (strategies.length === 0) {
+          return (
+            <section className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 glow-primary">
+              <p className="text-xs uppercase tracking-widest text-primary mb-1">Sell strategy</p>
+              <p className="text-sm">{rec.flipTip}</p>
+              {rec.neighbourhood && (
+                <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="size-3" /> Trending in {rec.neighbourhood}
+                </p>
+              )}
+            </section>
+          );
+        }
+        const demandStyle = (d: "high" | "steady" | "slow") =>
+          d === "high"   ? "text-hot border-hot/40 bg-hot/10"
+          : d === "steady" ? "text-warm border-warm/40 bg-warm/10"
+          :                  "text-cold border-cold/40 bg-cold/10";
+        const demandLabel = (d: string) => d === "high" ? "High demand" : d === "steady" ? "Steady demand" : "Slow movers";
+        return (
+          <section className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 glow-primary">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-widest text-primary">Sell strategy — {region!.name}</p>
+              <span className="text-[10px] text-muted-foreground">Live</span>
+            </div>
+            <ul className="space-y-3">
+              {strategies.map((s, i) => (
+                <li key={s.platform + i} className="rounded-xl bg-card/60 border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display font-bold text-sm">{s.platform}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${demandStyle(s.demand)} flex items-center gap-1`}>
+                      <Flame className="size-3" /> {demandLabel(s.demand)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm">
+                    List for <span className="font-bold">{fmtP(s.priceLow, rec.currency)}–{fmtP(s.priceHigh, rec.currency)}</span>
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="size-3" /> Typically sells in {s.expectedDays}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{s.reason}</p>
+                </li>
+              ))}
+            </ul>
+            {rec.neighbourhood && (
+              <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="size-3" /> Trending locally in {rec.neighbourhood}
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
+
+
 
       {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
         <MarketplaceExport
