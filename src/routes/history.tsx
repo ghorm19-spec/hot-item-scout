@@ -28,7 +28,7 @@ function HistoryPage() {
     };
   }, []);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     // 300ms debounce to prevent double-fire on flaky touches.
     if (clearDebounceRef.current) return;
     clearDebounceRef.current = setTimeout(() => {
@@ -52,7 +52,7 @@ function HistoryPage() {
       });
       return [];
     });
-  };
+  }, []);
 
   // Drop malformed entries + sort — memoized so it only recomputes when items or sort change.
   const sorted = useMemo(() => {
