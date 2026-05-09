@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/BottomNav";
+import { Toaster } from "@/components/ui/sonner";
 import { useEffect } from "react";
 import { applyDir } from "@/lib/i18n";
 
