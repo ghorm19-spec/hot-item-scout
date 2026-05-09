@@ -130,6 +130,7 @@ function ScanPage() {
       const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
       const msg = String(e?.message || "");
       if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
+        setNeedsAuth(true);
         setErr("Please sign in to scan.");
         setBusy(false);
         return;
