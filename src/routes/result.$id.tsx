@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, type ScanRecord } from "@/lib/storage";
+import { getHistory, saveScan, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
 import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
@@ -68,8 +68,7 @@ function ResultPage() {
 
   const persistTweaks = () => {
     const updated = { ...rec, condition, buyPrice };
-    const all = getHistory().filter(h => h.id !== rec.id);
-    localStorage.setItem("scoreflipp.history.v1", JSON.stringify([updated, ...all].slice(0,200)));
+    saveScan(updated);
     setRec(updated);
   };
 
