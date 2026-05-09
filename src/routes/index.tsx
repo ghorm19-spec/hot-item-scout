@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame } from "lucide-react";
+import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame, LogIn } from "lucide-react";
 import { getHistory } from "@/lib/storage";
 import { useEffect, useState } from "react";
 import { RegionPicker } from "@/components/RegionPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { getRegion, type Region } from "@/lib/regions";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   component: Index,
