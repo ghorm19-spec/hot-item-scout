@@ -191,11 +191,13 @@ function ScanPage() {
             <LanguagePicker />
             <RegionPicker />
             <label
-              className="size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white cursor-pointer active:scale-95 transition"
+              className={`size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white transition ${signedOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"}`}
               aria-label="Upload photo"
+              aria-disabled={signedOut}
+              onClick={(e) => { if (signedOut) { e.preventDefault(); requireAuth(); } }}
             >
               <Upload className="size-4" />
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} />
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} disabled={signedOut} />
             </label>
           </div>
         </div>
