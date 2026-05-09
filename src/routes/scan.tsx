@@ -105,6 +105,12 @@ function ScanPage() {
         compsAreEstimates: v.compsAreEstimates,
         confidenceReasons: v.confidenceReasons,
         suggestBarcode: v.suggestBarcode,
+        pricingSource: v.pricingSource,
+        pricingSampleCount: v.pricingSampleCount,
+        pricingMedian: v.pricingMedian,
+        pricingLow: v.pricingLow,
+        pricingHigh: v.pricingHigh,
+        pricingRetrievedAt: v.pricingRetrievedAt,
       };
       saveScan(rec);
       track({ type: "valuation.ok", verified: !!v.verified, tier: v.pricingTier, confidence: rec.confidence, ms: Math.round(performance.now() - t0) });
