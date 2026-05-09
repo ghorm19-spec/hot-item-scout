@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
 import { AlertTriangle, ScanLine } from "lucide-react";
+import { analytics } from "@/lib/telemetry";
 
 type Sort = "date" | "hotness" | "profit" | "category";
 
@@ -134,6 +135,7 @@ function HistoryPage() {
             <Link
               to="/scan"
               search={{ mode: "photo" } as any}
+              onClick={() => analytics("empty_state_cta_tapped", { screen: "history" })}
               className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-3 font-bold active:scale-95 transition glow-primary"
             >
               <ScanLine className="size-4" /> Scan Something

@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, saveScan, saveScanAsync, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck, Bookmark, Check, Loader2, Activity } from "lucide-react";
+import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck, Bookmark, Check, Loader2, Activity, Copy, ClipboardCheck } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { ShareMenu } from "@/components/ShareMenu";
 import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 import { toast } from "sonner";
+import { analytics } from "@/lib/telemetry";
+import { getRegion } from "@/lib/regions";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
@@ -30,6 +32,21 @@ const TIER_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
 
+type DeepLinkPlatform = {
+  key: string;
+  label: string;
+  url: (itemName: string) => string;
+  show: (rec: ScanRecord) => boolean;
+};
+
+const DEEP_LINK_PLATFORMS: DeepLinkPlatform[] = [
+  { key: "ebay",     label: "eBay",                 url: (n) => `https://www.ebay.com/sell/listing?item=${encodeURIComponent(n)}`, show: () => true },
+  { key: "depop",    label: "Depop",                url: () => "https://www.depop.com/sell/",                                       show: () => true },
+  { key: "vinted",   label: "Vinted",               url: () => "https://www.vinted.com/items/new",                                  show: () => true },
+  { key: "mercari",  label: "Mercari",              url: () => "https://www.mercari.com/sell/",                                     show: () => true },
+  { key: "facebook", label: "Facebook Marketplace", url: () => "https://www.facebook.com/marketplace/create/item",                  show: () => true },
+];
+
 function ResultPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -38,6 +55,7 @@ function ResultPage() {
   const [buyPrice, setBuyPrice] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const r = getHistory().find(h => h.id === id) || null;
@@ -58,6 +76,10 @@ function ResultPage() {
       setRec(updated);
       setSaved(true);
       toast.success("✓ Saved to your flips", { duration: 2500 });
+      analytics("result_saved", {
+        item_category: updated.category,
+        profit_amount: Math.round((updated.priceLow + updated.priceHigh) / 2 - (updated.buyPrice ?? 0)),
+      });
     } catch (e) {
       console.warn("save failed", e);
       toast.error("Save failed — tap to retry", {
@@ -66,6 +88,31 @@ function ResultPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCopyListing = async () => {
+    if (!rec || !adjusted) return;
+    const country = (() => { try { return getRegion().name; } catch { return ""; } })();
+    const price = new Intl.NumberFormat(undefined, { style: "currency", currency: rec.currency, maximumFractionDigits: 2 }).format(adjusted.mid);
+    const tip = (rec.flipTip || "").split(/(?<=[.!?])\s+/)[0]?.trim() || "";
+    const lines = [
+      `${rec.title} — ${condition}`,
+      `Asking: ${price}`,
+      tip,
+      country ? `Ships from: ${country}` : null,
+      "Message me with any questions!",
+    ].filter(Boolean);
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      navigator.vibrate?.(15);
+      const platforms = DEEP_LINK_PLATFORMS.filter(p => p.show(rec)).length;
+      analytics("listing_copied", { platform_count: platforms });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy — try again");
     }
   };
 
@@ -363,6 +410,43 @@ function ResultPage() {
         />
       )}
 
+      {/* Quick copy — single-tap plain-text listing for any platform */}
+      {!isUnknown && (
+        <button
+          onClick={handleCopyListing}
+          aria-live="polite"
+          className={`mt-3 w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition border ${
+            copied
+              ? "bg-hot/15 text-hot border-hot/40"
+              : "bg-card text-foreground border-border"
+          }`}
+        >
+          {copied ? <><ClipboardCheck className="size-4" /> Copied!</> : <><Copy className="size-4" /> Copy listing</>}
+        </button>
+      )}
+
+      {/* Where to sell — deep links to each platform's new-listing page */}
+      {!isUnknown && (
+        <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Where to sell</p>
+          <div className="flex flex-col gap-2">
+            {DEEP_LINK_PLATFORMS.filter((p) => p.show(rec)).map((p) => (
+              <a
+                key={p.key}
+                href={p.url(rec.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analytics("deep_link_tapped", { platform: p.key })}
+                className="flex items-center justify-between rounded-xl bg-background border border-border px-4 py-3 text-sm font-semibold active:scale-[0.99] transition"
+              >
+                <span>{p.label}</span>
+                <span className="text-primary text-xs font-bold">List it now →</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="mt-4 flex flex-col gap-2">
         <button
           onClick={handleSave}
@@ -386,7 +470,10 @@ function ResultPage() {
         </button>
 
         <button
-          onClick={() => navigate({ to: "/scan", search: { mode: rec.scanType } as any })}
+          onClick={() => {
+            analytics("rescan_tapped", { previous_mode: rec.scanType });
+            navigate({ to: "/scan", search: { mode: rec.scanType } as any });
+          }}
           className="w-full rounded-2xl bg-card border border-border py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition"
         >
           <ScanLine className="size-4" /> Scan Another Item

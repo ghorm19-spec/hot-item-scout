@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n";
 import { validateBarcode } from "@/lib/barcode";
 import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
 import { primeAudio, playError } from "@/lib/sounds";
-import { track } from "@/lib/telemetry";
+import { track, analytics } from "@/lib/telemetry";
 import { withRetry, isOnline } from "@/lib/network";
 import * as Sentry from "@sentry/react";
 import { useAuth } from "@/lib/auth";
@@ -59,6 +59,7 @@ function ScanPage() {
   }, []);
   const dismissOnboarding = () => {
     try { localStorage.setItem("flip_onboarded", "1"); } catch {}
+    analytics("onboarding_completed", {});
     setShowOnboarding(false);
   };
 
@@ -89,6 +90,7 @@ function ScanPage() {
     setNoResult(false);
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
+    analytics("scan_started", { mode: activeMode });
 
     // Pre-validate barcode client-side
     if (activeMode === "barcode" && input.code) {
@@ -130,6 +132,7 @@ function ScanPage() {
       const lowConfidence = !v.unknown && (v.confidence ?? 0) < 35;
       if (activeMode === "photo" && !input.notes && (v.unknown || lowConfidence)) {
         track({ type: "valuation.error", message: v.unknown ? "no_match" : "low_confidence" });
+        analytics("scan_failed", { mode: activeMode, error_type: v.unknown ? "no_match" : "low_confidence" });
         setNoResult(true);
         setBusy(false);
         return;
@@ -179,6 +182,12 @@ function ScanPage() {
       };
       saveScan(rec);
       track({ type: "valuation.ok", verified: !!v.verified, tier: v.pricingTier, confidence: rec.confidence, ms: Math.round(performance.now() - t0) });
+      analytics("scan_completed", {
+        mode: activeMode,
+        item_category: rec.category,
+        hotness_score: rec.hotness.score,
+        profit_amount: Math.round((rec.priceLow + rec.priceHigh) / 2),
+      });
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
       console.error("Valuation failed", e);
@@ -188,11 +197,13 @@ function ScanPage() {
       const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
       const msg = String(e?.message || "");
       if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
+        analytics("scan_failed", { mode: activeMode, error_type: "unauthorized" });
         setNeedsAuth(true);
         setErr("Please sign in to scan.");
         setBusy(false);
         return;
       }
+      analytics("scan_failed", { mode: activeMode, error_type: status ? `http_${status}` : "exception" });
       Sentry.captureException(e, {
         extra: { context: "valuation_failure", barcode: input.code },
       });
