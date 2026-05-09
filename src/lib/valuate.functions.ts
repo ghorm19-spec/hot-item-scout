@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { validateBarcode, titleCategoryCoherence } from "./barcode";
 import { lookupVerifiedProduct, type VerifiedProduct } from "./product-lookup.server";
+import { ebayProvider } from "./pricing/EbayProvider.server";
+import type { PricingResult } from "./pricing/PricingProvider";
 
 export interface ValuationInput {
   scanType: "photo" | "barcode" | "qr";
@@ -44,6 +46,13 @@ export interface ValuationOutput {
   compsAreEstimates: boolean;     // when true, label comps as AI ESTIMATES not sold listings
   confidenceReasons: string[];    // human-readable explanations
   suggestBarcode?: boolean;       // photo-mode: nudge user to scan barcode
+  // Real-comp metadata (present only when compsAreEstimates === false)
+  pricingSource?: string;
+  pricingSampleCount?: number;
+  pricingMedian?: number;
+  pricingLow?: number;
+  pricingHigh?: number;
+  pricingRetrievedAt?: string;
 }
 
 const SYSTEM_BASE = `You are Flip it, a precise resale-valuation engine for thrift, vintage, collectibles, and used consumer goods worldwide.
@@ -313,7 +322,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       unknown: false,
       imageUrl: verified?.imageUrl,
       pricingTier,
-      compsAreEstimates: true, // always true until a real sold-listing API is wired
+      compsAreEstimates: true,
       confidenceReasons: reasons,
       suggestBarcode,
     };
