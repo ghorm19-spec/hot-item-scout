@@ -125,6 +125,16 @@ function ScanPage() {
       );
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
 
+      // Photo no-result state — when AI couldn't recognize the item OR confidence is low,
+      // show the recovery card instead of saving a near-empty record.
+      const lowConfidence = !v.unknown && (v.confidence ?? 0) < 35;
+      if (activeMode === "photo" && !input.notes && (v.unknown || lowConfidence)) {
+        track({ type: "valuation.error", message: v.unknown ? "no_match" : "low_confidence" });
+        setNoResult(true);
+        setBusy(false);
+        return;
+      }
+
       const exact = activeMode !== "photo" && !!input.code && v.verified;
       const hot = computeHotness({
         salesVelocity: v.salesVelocity,
