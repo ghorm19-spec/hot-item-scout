@@ -32,6 +32,21 @@ const TIER_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
 const CONDITIONS = ["Poor","Fair","Good","Excellent"] as const;
 const CONDITION_MULT: Record<string, number> = { Poor: 0.55, Fair: 0.78, Good: 1.0, Excellent: 1.2 };
 
+type DeepLinkPlatform = {
+  key: string;
+  label: string;
+  url: (itemName: string) => string;
+  show: (rec: ScanRecord) => boolean;
+};
+
+const DEEP_LINK_PLATFORMS: DeepLinkPlatform[] = [
+  { key: "ebay",     label: "eBay",                 url: (n) => `https://www.ebay.com/sell/listing?item=${encodeURIComponent(n)}`, show: () => true },
+  { key: "depop",    label: "Depop",                url: () => "https://www.depop.com/sell/",                                       show: () => true },
+  { key: "vinted",   label: "Vinted",               url: () => "https://www.vinted.com/items/new",                                  show: () => true },
+  { key: "mercari",  label: "Mercari",              url: () => "https://www.mercari.com/sell/",                                     show: () => true },
+  { key: "facebook", label: "Facebook Marketplace", url: () => "https://www.facebook.com/marketplace/create/item",                  show: () => true },
+];
+
 function ResultPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
