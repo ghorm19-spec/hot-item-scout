@@ -445,12 +445,8 @@ function ResultPage() {
         );
       })()}
 
-      {false && (
-        <section className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 glow-primary">
-          <p className="text-xs uppercase tracking-widest text-primary mb-1">Flip strategy</p>
-          <p className="text-sm">{rec.flipTip}</p>
-        </section>
-      )}
+
+
 
       {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
         <MarketplaceExport
