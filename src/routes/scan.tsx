@@ -71,6 +71,8 @@ function ScanPage() {
     setErr(null);
     setNeedsAuth(false);
     setBusy(false);
+    setNoResult(false);
+    setManualOpen(false);
     // Unmount first so cleanupCamera() runs and the MediaStream tracks are released,
     // then wait 300ms before remounting so the OS fully frees the camera before reinit.
     setScannerMounted(false);
@@ -80,10 +82,11 @@ function ScanPage() {
     }, 300);
   };
 
-  const handleResult = async (input: { code?: string; imageBase64?: string }) => {
+  const handleResult = async (input: { code?: string; imageBase64?: string; notes?: string }) => {
     if (busy) return;
     if (signedOut) { requireAuth(); return; }
     setLastInput(input);
+    setNoResult(false);
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
 
