@@ -40,6 +40,7 @@ function ResultPage() {
   const [buyPrice, setBuyPrice] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const r = getHistory().find(h => h.id === id) || null;
