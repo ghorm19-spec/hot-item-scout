@@ -37,6 +37,7 @@ function ScanPage() {
   const [err, setErr] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
+  const [scannerMounted, setScannerMounted] = useState(true);
   const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string } | null>(null);
   const valuateFn = useServerFn(valuate);
   const { user, loading: authLoading } = useAuth();
@@ -53,7 +54,13 @@ function ScanPage() {
     setErr(null);
     setNeedsAuth(false);
     setBusy(false);
-    setScannerKey((k) => k + 1);
+    // Unmount first so cleanupCamera() runs and the MediaStream tracks are released,
+    // then wait 300ms before remounting so the OS fully frees the camera before reinit.
+    setScannerMounted(false);
+    setTimeout(() => {
+      setScannerKey((k) => k + 1);
+      setScannerMounted(true);
+    }, 300);
   };
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
@@ -178,7 +185,7 @@ function ScanPage() {
       style={{ width: "100dvw", height: "100dvh" }}
     >
       {/* Full-screen camera fills the container */}
-      <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />
+      {scannerMounted && <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />}
 
       {/* Floating overlays */}
       <div className="pointer-events-none absolute inset-0">
