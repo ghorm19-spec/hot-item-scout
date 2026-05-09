@@ -36,9 +36,13 @@ function ScanPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
+  const [scannerKey, setScannerKey] = useState(0);
+  const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string } | null>(null);
   const valuateFn = useServerFn(valuate);
   const { user, loading: authLoading } = useAuth();
   const signedOut = !authLoading && !user;
+  // Camera is "active" whenever the scanner is the foreground UI (no busy overlay, no error card)
+  const cameraActive = !busy && !err;
 
   const requireAuth = () => {
     setNeedsAuth(true);
