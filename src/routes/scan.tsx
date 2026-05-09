@@ -38,12 +38,29 @@ function ScanPage() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
   const [scannerMounted, setScannerMounted] = useState(true);
-  const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string } | null>(null);
+  const [lastInput, setLastInput] = useState<{ code?: string; imageBase64?: string; notes?: string } | null>(null);
+  const [noResult, setNoResult] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualCondition, setManualCondition] = useState<ScanRecord["condition"]>("Good");
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const valuateFn = useServerFn(valuate);
   const { user, loading: authLoading } = useAuth();
   const signedOut = !authLoading && !user;
-  // Camera is "active" whenever the scanner is the foreground UI (no busy overlay, no error card)
-  const cameraActive = !busy && !err;
+  // Camera is "active" whenever the scanner is the foreground UI (no overlay open)
+  const cameraActive = !busy && !err && !noResult && !manualOpen && !showOnboarding;
+
+  // First-run onboarding overlay
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      if (!localStorage.getItem("flip_onboarded")) setShowOnboarding(true);
+    } catch {}
+  }, []);
+  const dismissOnboarding = () => {
+    try { localStorage.setItem("flip_onboarded", "1"); } catch {}
+    setShowOnboarding(false);
+  };
 
   const requireAuth = () => {
     setNeedsAuth(true);
