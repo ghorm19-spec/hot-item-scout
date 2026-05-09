@@ -8,10 +8,10 @@ import { routeTree } from "./routeTree.gen";
 if (typeof window !== "undefined" && !(window as any).__sentryInited) {
   (window as any).__sentryInited = true;
   Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN as string | undefined,
+    dsn: "https://6998664add55440619fe634473078521@o4511360527171584.ingest.us.sentry.io/4511360536346624",
     environment: import.meta.env.MODE,
     tracesSampleRate: 0.1,
-    enabled: !!import.meta.env.VITE_SENTRY_DSN,
+    enabled: typeof window !== "undefined",
   });
 }
 
