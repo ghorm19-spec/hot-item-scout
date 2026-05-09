@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { shareText } from "@/lib/marketplace";
+import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
@@ -49,9 +50,9 @@ function ResultPage() {
     const low = Math.round(rec.priceLow * factor);
     const high = Math.round(rec.priceHigh * factor);
     const mid = (low + high) / 2;
-    const fees = mid * 0.13; // platform + shipping rough
-    const profit = Math.max(0, mid - buyPrice - fees);
-    return { low, high, mid, fees, profit };
+    const fb = calculateNetProceeds(mid, rec.category);
+    const profit = Math.max(0, fb.netProceeds - buyPrice);
+    return { low, high, mid, fees: fb.ebayFee + fb.paymentFee + fb.shipping, profit, fb };
   }, [rec, condition, buyPrice]);
 
   if (!rec || !adjusted) {
@@ -63,6 +64,7 @@ function ResultPage() {
   const conf = confidenceTier(rec.confidence);
   const isUnknown = !!rec.unknown || rec.confidence === 0;
   const heroImg = rec.imageUrl || rec.thumbnail;
+  const hasRealComps = rec.compsAreEstimates === false && (rec.pricingSampleCount || 0) >= 5;
 
   const share = async () => {
     const text = shareText(rec);
@@ -169,9 +171,32 @@ function ResultPage() {
         )}
 
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {rec.dataSource ? `Source: ${rec.dataSource} · ` : ""}{rec.comps.length} {rec.compsAreEstimates !== false ? "AI-estimated" : "sold"} comps{rec.code ? ` · ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
+          {rec.dataSource ? `Source: ${rec.dataSource} · ` : ""}{rec.comps.length} {hasRealComps ? "sold" : "AI-estimated"} comps{rec.code ? ` · ${rec.code.slice(0,16)}${rec.code.length>16?"…":""}` : ""}
         </p>
       </section>
+
+      {/* Real sold-listing panel */}
+      {hasRealComps && !isUnknown && (
+        <section className="mt-3 rounded-2xl border border-hot/40 bg-hot/10 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <BadgeCheck className="size-4 text-hot" />
+            <p className="text-xs uppercase tracking-widest text-hot font-bold">Real market data</p>
+          </div>
+          <p className="text-xs text-foreground/85">
+            Based on <span className="font-bold">{rec.pricingSampleCount}</span> recent sold listings on eBay.
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <Pill label="Low" value={fmt(rec.pricingLow ?? 0, rec.currency)} />
+            <Pill label="Median" value={fmt(rec.pricingMedian ?? 0, rec.currency)} highlight />
+            <Pill label="High" value={fmt(rec.pricingHigh ?? 0, rec.currency)} />
+          </div>
+          {rec.pricingRetrievedAt && (
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Retrieved {new Date(rec.pricingRetrievedAt).toLocaleString()}
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Confidence reasons — provenance/honesty panel */}
       {rec.confidenceReasons && rec.confidenceReasons.length > 0 && (
@@ -224,10 +249,17 @@ function ResultPage() {
               className="w-28 rounded-lg bg-input border border-border px-3 py-2 text-right font-display font-bold"
             />
           </label>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
             <Pill label="Mid sell" value={fmt(adjusted.mid, rec.currency)} />
-            <Pill label="Fees ~13%" value={`-${fmt(adjusted.fees, rec.currency)}`} />
             <Pill label="Net profit" value={fmt(adjusted.profit, rec.currency)} highlight />
+          </div>
+          <div className="mt-3 rounded-xl border border-border bg-secondary/40 p-3 space-y-1.5 text-xs">
+            <FeeRow label="Gross sell"     value={fmt(adjusted.fb.grossSalePrice, rec.currency)} />
+            <FeeRow label="eBay fee (13.25% + $0.30)" value={`-${fmt(adjusted.fb.ebayFee, rec.currency)}`} />
+            <FeeRow label="Payment fee (2.9% + $0.30)" value={`-${fmt(adjusted.fb.paymentFee, rec.currency)}`} />
+            <FeeRow label="Shipping est."  value={`-${fmt(adjusted.fb.shipping, rec.currency)}`} />
+            <div className="h-px bg-border my-1" />
+            <FeeRow label="Net proceeds"   value={fmt(adjusted.fb.netProceeds, rec.currency)} bold />
           </div>
         </section>
       )}
@@ -238,7 +270,11 @@ function ResultPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <TrendingUp className="size-3.5" /> Comparable prices
             </p>
-            {rec.compsAreEstimates !== false && (
+            {hasRealComps ? (
+              <span className="text-[9px] uppercase tracking-wider font-bold text-hot border border-hot/40 bg-hot/10 px-1.5 py-0.5 rounded">
+                eBay Sold
+              </span>
+            ) : (
               <span className="text-[9px] uppercase tracking-wider font-bold text-warm border border-warm/40 bg-warm/10 px-1.5 py-0.5 rounded">
                 AI Estimates
               </span>
@@ -255,8 +291,22 @@ function ResultPage() {
               </li>
             ))}
           </ul>
-          {rec.compsAreEstimates !== false && (
-            <p className="mt-2 text-[10px] text-muted-foreground">Estimates derived from AI knowledge, not real-time sold listings. Verify on the platform.</p>
+          {hasRealComps ? (
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Real sold prices from eBay (outliers trimmed).
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Estimates derived from AI knowledge, not real-time sold listings. Verify on the platform.
+              </p>
+              <Link
+                to="/settings"
+                className="mt-2 inline-flex items-center gap-1 rounded-lg bg-primary/15 text-primary border border-primary/30 px-3 py-1.5 text-[11px] font-bold"
+              >
+                <SettingsIcon className="size-3.5" /> Connect eBay in Settings for real comps
+              </Link>
+            </>
           )}
         </section>
       )}
@@ -300,6 +350,15 @@ function Pill({ label, value, highlight }: { label: string; value: string; highl
     <div className={`rounded-xl border p-2 ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-secondary"}`}>
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className={`font-display font-bold ${highlight ? "text-primary" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function FeeRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={bold ? "font-bold" : "text-muted-foreground"}>{label}</span>
+      <span className={`font-display ${bold ? "font-black text-primary" : "font-bold"}`}>{value}</span>
     </div>
   );
 }
