@@ -143,7 +143,8 @@ function clamp(n: number, lo = 0, hi = 100) {
 }
 
 export const valuate = createServerFn({ method: "POST" })
-  .inputValidator((d: ValuationInput) => d)
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ValuationInputSchema.parse(d) as ValuationInput)
   .handler(async ({ data }): Promise<ValuationOutput> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY missing");
