@@ -70,15 +70,28 @@ function Index() {
 
         <button
           onClick={() => go("photo")}
-          className="mt-6 w-full rounded-2xl bg-primary text-primary-foreground py-5 font-display font-bold text-lg active:scale-[0.99] transition glow-primary flex items-center justify-center gap-3"
+          aria-disabled={signedOut}
+          className={`mt-6 w-full rounded-2xl bg-primary text-primary-foreground py-5 font-display font-bold text-lg transition glow-primary flex items-center justify-center gap-3 ${signedOut ? "opacity-50" : "active:scale-[0.99]"}`}
         >
           <Camera className="size-6" /> {t("home.cta")}
         </button>
 
+        {showAuthPrompt && signedOut && (
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/15 text-destructive p-3 text-sm flex items-center justify-between gap-3">
+            <span>Please sign in to scan.</span>
+            <button
+              onClick={() => navigate({ to: "/login" })}
+              className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition flex items-center gap-1"
+            >
+              <LogIn className="size-3.5" /> Sign in
+            </button>
+          </div>
+        )}
+
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <ModeBtn label={t("mode.photo")}  icon={<Camera className="size-5" />}  onClick={() => go("photo")} />
-          <ModeBtn label={t("mode.barcode")} icon={<ScanLine className="size-5" />} onClick={() => go("barcode")} />
-          <ModeBtn label={t("mode.qr")}      icon={<QrCode className="size-5" />}   onClick={() => go("qr")} />
+          <ModeBtn label={t("mode.photo")}  icon={<Camera className="size-5" />}  disabled={signedOut} onClick={() => go("photo")} />
+          <ModeBtn label={t("mode.barcode")} icon={<ScanLine className="size-5" />} disabled={signedOut} onClick={() => go("barcode")} />
+          <ModeBtn label={t("mode.qr")}      icon={<QrCode className="size-5" />}   disabled={signedOut} onClick={() => go("qr")} />
         </div>
       </section>
 
