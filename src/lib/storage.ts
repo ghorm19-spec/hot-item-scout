@@ -135,7 +135,7 @@ export function saveScan(r: ScanRecord) {
   _cache = applyCapAndTtl([r, ..._cache.filter((x) => x.id !== r.id)]);
   notify();
   if (typeof window === "undefined") return;
-  void persistScan(r);
+  void persistScan(r).catch((e) => console.warn("[storage] saveScan failed", e));
 }
 
 /** Awaits the IndexedDB write so callers can show success / failure toasts. */
