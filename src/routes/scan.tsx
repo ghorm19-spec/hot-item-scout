@@ -37,6 +37,13 @@ function ScanPage() {
   const [err, setErr] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
   const valuateFn = useServerFn(valuate);
+  const { user, loading: authLoading } = useAuth();
+  const signedOut = !authLoading && !user;
+
+  const requireAuth = () => {
+    setNeedsAuth(true);
+    setErr("Please sign in to scan.");
+  };
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
