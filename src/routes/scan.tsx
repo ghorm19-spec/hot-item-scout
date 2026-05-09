@@ -187,6 +187,16 @@ function ScanPage() {
       {/* Full-screen camera fills the container */}
       {scannerMounted && <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />}
 
+      {/* Restart indicator — only shown during the brief unmount/remount gap */}
+      {!scannerMounted && (
+        <div className="absolute inset-0 z-[108] grid place-items-center bg-black/80">
+          <div className="flex flex-col items-center gap-3 text-white">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">Restarting camera…</p>
+          </div>
+        </div>
+      )}
+
       {/* Floating overlays */}
       <div className="pointer-events-none absolute inset-0">
         {/* Top controls */}
