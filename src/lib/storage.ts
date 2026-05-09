@@ -31,6 +31,13 @@ export interface ScanRecord {
   compsAreEstimates?: boolean;
   confidenceReasons?: string[];
   suggestBarcode?: boolean;
+  // Phase 3 — real sold-listing comps (when available)
+  pricingSource?: string;          // e.g. "ebay-finding-completed"
+  pricingSampleCount?: number;
+  pricingMedian?: number;
+  pricingLow?: number;
+  pricingHigh?: number;
+  pricingRetrievedAt?: string;     // ISO
 }
 
 const KEY = "scoreflipp.history.v1";

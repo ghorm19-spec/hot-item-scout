@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { validateBarcode, titleCategoryCoherence } from "./barcode";
 import { lookupVerifiedProduct, type VerifiedProduct } from "./product-lookup.server";
+import { ebayProvider } from "./pricing/EbayProvider.server";
+import type { PricingResult } from "./pricing/PricingProvider";
 
 export interface ValuationInput {
   scanType: "photo" | "barcode" | "qr";
@@ -44,6 +46,13 @@ export interface ValuationOutput {
   compsAreEstimates: boolean;     // when true, label comps as AI ESTIMATES not sold listings
   confidenceReasons: string[];    // human-readable explanations
   suggestBarcode?: boolean;       // photo-mode: nudge user to scan barcode
+  // Real-comp metadata (present only when compsAreEstimates === false)
+  pricingSource?: string;
+  pricingSampleCount?: number;
+  pricingMedian?: number;
+  pricingLow?: number;
+  pricingHigh?: number;
+  pricingRetrievedAt?: string;
 }
 
 const SYSTEM_BASE = `You are Flip it, a precise resale-valuation engine for thrift, vintage, collectibles, and used consumer goods worldwide.
@@ -291,6 +300,65 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       priceLow = 0; priceHigh = 0;
     }
 
+    // ------- Real sold-listing comps (eBay) -------
+    // Only attempt for barcode/qr scans with a usable code AND when we trust the identity.
+    let realComps: PricingResult | null = null;
+    let compsAreEstimates = true;
+    let comps2 = comps;
+    let dataSource = verified ? verified.source : "AI vision";
+    let pricingSource: string | undefined;
+    let pricingSampleCount: number | undefined;
+    let pricingMedian: number | undefined;
+    let pricingLow: number | undefined;
+    let pricingHigh: number | undefined;
+    let pricingRetrievedAt: string | undefined;
+
+    const eligibleForRealComps =
+      (data.scanType === "barcode" || data.scanType === "qr") &&
+      !!data.code &&
+      pricingTier !== "UNKNOWN" &&
+      pricingTier !== "SPECULATIVE";
+
+    if (eligibleForRealComps) {
+      try {
+        realComps = await ebayProvider.lookup(data.code!, category);
+      } catch (e) {
+        console.warn("[valuate] ebay lookup failed", e);
+        realComps = null;
+      }
+
+      if (realComps && !realComps.is_mock && realComps.sample_count >= 5) {
+        compsAreEstimates = false;
+        dataSource = "ebay-sold-comps";
+        pricingSource = realComps.source;
+        pricingSampleCount = realComps.sample_count;
+        pricingMedian = realComps.median;
+        pricingLow = realComps.low;
+        pricingHigh = realComps.high;
+        pricingRetrievedAt = realComps.retrieved_at;
+
+        // Override price band with real low/high; keep AI band as a sanity floor when sensible.
+        priceLow = realComps.low;
+        priceHigh = realComps.high;
+
+        // Replace comps array with up to 6 real sold prices.
+        const sample = realComps.sold_prices.slice(0, 6).map((price, i) => ({
+          source: `eBay sold #${i + 1}`,
+          price,
+        }));
+        comps2 = sample;
+
+        // Real comps boost confidence floor.
+        confidence = Math.max(confidence, 80);
+
+        reasons.push(`Pricing based on ${realComps.sample_count} recent sold listings on eBay (median ${realComps.median} ${realComps.currency}).`);
+      } else if (realComps && realComps.is_mock) {
+        reasons.push("eBay sold-listing API not connected — comps are AI estimates only.");
+      } else if (realComps) {
+        reasons.push(`Only ${realComps.sample_count} eBay sold comp${realComps.sample_count === 1 ? "" : "s"} found — using AI estimates instead.`);
+      }
+    }
+
     return {
       title,
       category,
@@ -299,7 +367,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       priceHighCAD: priceHigh,
       currency: parsed.currency || data.region?.currency || "USD",
       condition: parsed.condition || "Good",
-      comps,
+      comps: comps2,
       salesVelocity: clamp(parsed.salesVelocity ?? 0),
       marginPotential: clamp(parsed.marginPotential ?? 0),
       trendScore: clamp(parsed.trendScore ?? 0),
@@ -308,14 +376,20 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       neighbourhood: parsed.neighbourhood,
       flipTip: parsed.flipTip || "Insufficient data to suggest a flip strategy.",
       verified: !!verified,
-      dataSource: verified ? verified.source : "AI vision",
+      dataSource,
       warnings,
       unknown: false,
       imageUrl: verified?.imageUrl,
       pricingTier,
-      compsAreEstimates: true, // always true until a real sold-listing API is wired
+      compsAreEstimates,
       confidenceReasons: reasons,
       suggestBarcode,
+      pricingSource,
+      pricingSampleCount,
+      pricingMedian,
+      pricingLow,
+      pricingHigh,
+      pricingRetrievedAt,
     };
   });
 
