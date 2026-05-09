@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame } from "lucide-react";
+import { Camera, ScanLine, QrCode, Sparkles, MapPin, Flame, LogIn } from "lucide-react";
 import { getHistory } from "@/lib/storage";
 import { useEffect, useState } from "react";
 import { RegionPicker } from "@/components/RegionPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { getRegion, type Region } from "@/lib/regions";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -21,12 +22,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = useNavigate();
   const { t } = useT();
+  const { user, loading: authLoading } = useAuth();
+  const signedOut = !authLoading && !user;
   const [count, setCount] = useState(0);
   const [region, setRegion] = useState<Region | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   useEffect(() => { setCount(getHistory().length); setRegion(getRegion()); }, []);
 
-  const go = (mode: "photo" | "barcode" | "qr") =>
+  const go = (mode: "photo" | "barcode" | "qr") => {
+    if (signedOut) { setShowAuthPrompt(true); return; }
     navigate({ to: "/scan", search: { mode } as any });
+  };
 
   return (
     <AppShell>
@@ -64,15 +70,28 @@ function Index() {
 
         <button
           onClick={() => go("photo")}
-          className="mt-6 w-full rounded-2xl bg-primary text-primary-foreground py-5 font-display font-bold text-lg active:scale-[0.99] transition glow-primary flex items-center justify-center gap-3"
+          aria-disabled={signedOut}
+          className={`mt-6 w-full rounded-2xl bg-primary text-primary-foreground py-5 font-display font-bold text-lg transition glow-primary flex items-center justify-center gap-3 ${signedOut ? "opacity-50" : "active:scale-[0.99]"}`}
         >
           <Camera className="size-6" /> {t("home.cta")}
         </button>
 
+        {showAuthPrompt && signedOut && (
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/15 text-destructive p-3 text-sm flex items-center justify-between gap-3">
+            <span>Please sign in to scan.</span>
+            <button
+              onClick={() => navigate({ to: "/login" })}
+              className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition flex items-center gap-1"
+            >
+              <LogIn className="size-3.5" /> Sign in
+            </button>
+          </div>
+        )}
+
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <ModeBtn label={t("mode.photo")}  icon={<Camera className="size-5" />}  onClick={() => go("photo")} />
-          <ModeBtn label={t("mode.barcode")} icon={<ScanLine className="size-5" />} onClick={() => go("barcode")} />
-          <ModeBtn label={t("mode.qr")}      icon={<QrCode className="size-5" />}   onClick={() => go("qr")} />
+          <ModeBtn label={t("mode.photo")}  icon={<Camera className="size-5" />}  disabled={signedOut} onClick={() => go("photo")} />
+          <ModeBtn label={t("mode.barcode")} icon={<ScanLine className="size-5" />} disabled={signedOut} onClick={() => go("barcode")} />
+          <ModeBtn label={t("mode.qr")}      icon={<QrCode className="size-5" />}   disabled={signedOut} onClick={() => go("qr")} />
         </div>
       </section>
 
@@ -112,9 +131,9 @@ function Index() {
   );
 }
 
-function ModeBtn({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+function ModeBtn({ label, icon, disabled, onClick }: { label: string; icon: React.ReactNode; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded-xl bg-card border border-border py-3 flex flex-col items-center gap-1 text-xs font-medium active:scale-95 transition">
+    <button onClick={onClick} aria-disabled={disabled} className={`rounded-xl bg-card border border-border py-3 flex flex-col items-center gap-1 text-xs font-medium transition ${disabled ? "opacity-50" : "active:scale-95"}`}>
       <span className="text-primary">{icon}</span>
       {label}
     </button>

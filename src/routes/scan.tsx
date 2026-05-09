@@ -16,6 +16,7 @@ import { primeAudio, playError } from "@/lib/sounds";
 import { track } from "@/lib/telemetry";
 import { withRetry, isOnline } from "@/lib/network";
 import * as Sentry from "@sentry/react";
+import { useAuth } from "@/lib/auth";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -36,9 +37,17 @@ function ScanPage() {
   const [err, setErr] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
   const valuateFn = useServerFn(valuate);
+  const { user, loading: authLoading } = useAuth();
+  const signedOut = !authLoading && !user;
+
+  const requireAuth = () => {
+    setNeedsAuth(true);
+    setErr("Please sign in to scan.");
+  };
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
+    if (signedOut) { requireAuth(); return; }
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
 
@@ -182,11 +191,13 @@ function ScanPage() {
             <LanguagePicker />
             <RegionPicker />
             <label
-              className="size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white cursor-pointer active:scale-95 transition"
+              className={`size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white transition ${signedOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"}`}
               aria-label="Upload photo"
+              aria-disabled={signedOut}
+              onClick={(e) => { if (signedOut) { e.preventDefault(); requireAuth(); } }}
             >
               <Upload className="size-4" />
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} />
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} disabled={signedOut} />
             </label>
           </div>
         </div>
@@ -207,9 +218,9 @@ function ScanPage() {
             {activeMode === "qr" && t("scan.hint.qr")}
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
-            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
-            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
+            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); }} />
+            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); }} />
+            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); }} />
           </div>
         </div>
       </div>
@@ -246,9 +257,9 @@ function ScanPage() {
   );
 }
 
-function ModeTab({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function ModeTab({ icon, label, active, disabled, onClick }: { icon: React.ReactNode; label: string; active: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"}`}>
+    <button onClick={onClick} aria-disabled={disabled} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"} ${disabled ? "opacity-50" : ""}`}>
       {icon}{label}
     </button>
   );
