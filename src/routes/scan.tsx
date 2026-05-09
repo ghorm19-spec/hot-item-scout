@@ -229,7 +229,17 @@ function ScanPage() {
           className="absolute left-4 right-4 z-[105] rounded-xl border border-destructive/40 bg-destructive/15 backdrop-blur-md text-destructive p-3 text-sm"
           style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)" }}
         >
-          {err}
+          <div className="flex items-center justify-between gap-3">
+            <span>{err}</span>
+            {needsAuth && (
+              <button
+                onClick={() => navigate({ to: "/login" })}
+                className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
