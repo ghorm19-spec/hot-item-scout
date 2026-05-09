@@ -15,6 +15,7 @@ import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
 import { primeAudio, playError } from "@/lib/sounds";
 import { track } from "@/lib/telemetry";
 import { withRetry, isOnline } from "@/lib/network";
+import * as Sentry from "@sentry/react";
 
 type Mode = "photo" | "barcode" | "qr";
 
@@ -47,6 +48,11 @@ function ScanPage() {
         playError();
         navigator.vibrate?.([60, 40, 60]);
         track({ type: "scan.barcode_invalid", code: input.code });
+        Sentry.addBreadcrumb({
+          category: "scan",
+          message: "scan_failed",
+          data: { reason: "invalid_barcode", barcode: input.code },
+        });
         setErr("That barcode looks like a misread. Hold steady and try again.");
         return;
       }
@@ -120,6 +126,11 @@ function ScanPage() {
       playError();
       navigator.vibrate?.([60, 40, 60]);
       track({ type: "valuation.error", message: String(e?.message || e) });
+      Sentry.addBreadcrumb({
+        category: "scan",
+        message: "scan_failed",
+        data: { reason: String(e?.message || e), barcode: input.code },
+      });
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
     }
