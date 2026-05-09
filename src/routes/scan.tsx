@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { CameraScanner } from "@/components/CameraScanner";
-import { Camera, ScanLine, QrCode, Upload, ArrowLeft, Loader2 } from "lucide-react";
+import { Camera, ScanLine, QrCode, Upload, ArrowLeft, Loader2, RefreshCw, Home } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { valuate } from "@/lib/valuate.functions";
 import { computeHotness } from "@/lib/hotness";
