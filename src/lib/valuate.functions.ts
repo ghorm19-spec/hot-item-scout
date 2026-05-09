@@ -10,6 +10,14 @@ import * as Sentry from "@sentry/react";
 // ~2 MB decoded image cap (base64 expands ~33%, so cap raw string at ~2.8 MB)
 const MAX_IMAGE_BASE64_CHARS = 2_800_000;
 
+// Strip control chars (incl. newlines) from any free-text field that gets
+// concatenated into the AI prompt — defends against prompt-injection.
+const safeText = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .transform((s) => s.replace(/[\x00-\x1F\x7F]+/g, " ").trim());
+
 const ValuationInputSchema = z.object({
   scanType: z.enum(["photo", "barcode", "qr"]),
   code: z.string().trim().max(128).regex(/^[\x20-\x7E]*$/, "invalid characters").optional(),
@@ -17,13 +25,17 @@ const ValuationInputSchema = z.object({
     .string()
     .max(MAX_IMAGE_BASE64_CHARS, "image too large")
     .optional(),
-  notes: z.string().max(500).optional(),
+  notes: safeText(500).optional(),
   region: z
     .object({
-      code: z.string().trim().max(8),
-      name: z.string().trim().max(64),
+      code: z.string().trim().max(8).regex(/^[A-Za-z0-9-]{2,8}$/, "invalid region code"),
+      name: safeText(64).pipe(z.string().regex(/^[\p{L}\p{N} ,.'\-()]{0,64}$/u, "invalid characters")),
       currency: z.string().trim().max(8).regex(/^[A-Za-z]{2,8}$/, "invalid currency"),
-      markets: z.array(z.string().trim().max(64)).max(20),
+      markets: z
+        .array(
+          safeText(64).pipe(z.string().regex(/^[\p{L}\p{N} ,.'\-()/&]{0,64}$/u, "invalid characters")),
+        )
+        .max(20),
     })
     .optional(),
 });
