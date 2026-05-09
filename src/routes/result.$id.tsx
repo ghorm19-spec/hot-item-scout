@@ -61,6 +61,10 @@ function ResultPage() {
       setRec(updated);
       setSaved(true);
       toast.success("✓ Saved to your flips", { duration: 2500 });
+      analytics("result_saved", {
+        item_category: updated.category,
+        profit_amount: Math.round((updated.priceLow + updated.priceHigh) / 2 - (updated.buyPrice ?? 0)),
+      });
     } catch (e) {
       console.warn("save failed", e);
       toast.error("Save failed — tap to retry", {
