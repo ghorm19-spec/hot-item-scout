@@ -59,6 +59,7 @@ function ScanPage() {
   }, []);
   const dismissOnboarding = () => {
     try { localStorage.setItem("flip_onboarded", "1"); } catch {}
+    analytics("onboarding_completed", {});
     setShowOnboarding(false);
   };
 
