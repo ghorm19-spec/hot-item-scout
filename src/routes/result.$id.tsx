@@ -282,6 +282,18 @@ function ResultPage() {
         </section>
       )}
 
+      {/* Price context bar — pure SVG, hidden when resale data is missing */}
+      {!isUnknown && adjusted.low > 0 && adjusted.high > adjusted.low && (
+        <PriceContextBar
+          buyPrice={buyPrice}
+          low={adjusted.low}
+          mid={adjusted.mid}
+          high={adjusted.high}
+          currency={rec.currency}
+          live={hasRealComps}
+        />
+      )}
+
       {rec.comps.length > 0 && (
         <section className="mt-4 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
