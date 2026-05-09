@@ -126,6 +126,13 @@ function ScanPage() {
       playError();
       navigator.vibrate?.([60, 40, 60]);
       track({ type: "valuation.error", message: String(e?.message || e) });
+      const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
+      const msg = String(e?.message || "");
+      if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
+        setErr("Please sign in to scan.");
+        setBusy(false);
+        return;
+      }
       Sentry.captureException(e, {
         extra: { context: "valuation_failure", barcode: input.code },
       });
