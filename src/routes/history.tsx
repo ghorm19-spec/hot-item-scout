@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ScanLine } from "lucide-react";
 
 type Sort = "date" | "hotness" | "profit" | "category";
 
