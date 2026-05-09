@@ -34,6 +34,7 @@ function ScanPage() {
   const [activeMode, setActiveMode] = useState<Mode>(mode);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const valuateFn = useServerFn(valuate);
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
@@ -64,7 +65,7 @@ function ScanPage() {
       return;
     }
 
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setNeedsAuth(false);
     const t0 = performance.now();
     try {
       const region = getRegion();
@@ -129,6 +130,7 @@ function ScanPage() {
       const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
       const msg = String(e?.message || "");
       if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
+        setNeedsAuth(true);
         setErr("Please sign in to scan.");
         setBusy(false);
         return;
@@ -227,7 +229,17 @@ function ScanPage() {
           className="absolute left-4 right-4 z-[105] rounded-xl border border-destructive/40 bg-destructive/15 backdrop-blur-md text-destructive p-3 text-sm"
           style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)" }}
         >
-          {err}
+          <div className="flex items-center justify-between gap-3">
+            <span>{err}</span>
+            {needsAuth && (
+              <button
+                onClick={() => navigate({ to: "/login" })}
+                className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
