@@ -65,14 +65,24 @@ export function CameraScanner({ mode, onCapture }: Props) {
 
     const start = async () => {
       try {
+        const isLowEnd = (navigator.hardwareConcurrency ?? 8) <= 4;
+        const videoConstraints: MediaTrackConstraints = isLowEnd
+          ? {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 15 },
+              ...({ focusMode: "continuous" } as any),
+            }
+          : {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              frameRate: { ideal: 30 },
+              ...({ focusMode: "continuous" } as any),
+            };
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            // @ts-expect-error advanced focus hint
-            focusMode: "continuous",
-          },
+          video: videoConstraints,
           audio: false,
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }

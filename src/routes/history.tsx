@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Component, memo, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
@@ -28,7 +28,7 @@ function HistoryPage() {
     };
   }, []);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     // 300ms debounce to prevent double-fire on flaky touches.
     if (clearDebounceRef.current) return;
     clearDebounceRef.current = setTimeout(() => {
@@ -52,7 +52,7 @@ function HistoryPage() {
       });
       return [];
     });
-  };
+  }, []);
 
   // Drop malformed entries + sort — memoized so it only recomputes when items or sort change.
   const sorted = useMemo(() => {

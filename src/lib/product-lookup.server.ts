@@ -11,7 +11,7 @@ export interface VerifiedProduct {
   raw?: any;
 }
 
-const TIMEOUT_MS = 4000;
+const TIMEOUT_MS = 2000;
 
 async function fetchJson(url: string, init?: RequestInit): Promise<any | null> {
   try {
