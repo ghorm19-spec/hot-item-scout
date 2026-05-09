@@ -255,11 +255,6 @@ export function CameraScanner({ mode, onCapture }: Props) {
     setTimeout(() => onCapture({ imageBase64: dataUrl }), 250);
   };
 
-  const reticleSize =
-    mode === "qr" ? "w-64 h-64"
-    : mode === "barcode" ? "w-72 h-32"
-    : "w-72 h-72";
-
   // SVG corner-bracket reticle dimensions per mode
   const reticleW = mode === "qr" ? 256 : mode === "barcode" ? 288 : 288;
   const reticleH = mode === "qr" ? 256 : mode === "barcode" ? 128 : 288;
