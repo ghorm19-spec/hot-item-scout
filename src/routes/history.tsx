@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, clearHistory, saveScan, type ScanRecord } from "@/lib/storage";
+import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
+import { AlertTriangle } from "lucide-react";
 
 type Sort = "date" | "hotness" | "profit" | "category";
 
@@ -17,7 +18,11 @@ function HistoryPage() {
   const [sort, setSort] = useState<Sort>("date");
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setItems(getHistory()); }, []);
+  useEffect(() => {
+    setItems(getHistory());
+    const unsub = subscribeHistory(() => setItems(getHistory()));
+    return () => unsub();
+  }, []);
 
   const handleClear = () => {
     setItems((prev) => {
@@ -40,7 +45,17 @@ function HistoryPage() {
     });
   };
 
-  const sorted = [...items].sort((a, b) => {
+  // Drop malformed entries before sorting/render so a single bad row can't crash the list.
+  const safeItems = items.filter(
+    (r) =>
+      r &&
+      typeof r.id === "string" && r.id.length > 0 &&
+      typeof r.createdAt === "number" && Number.isFinite(r.createdAt) &&
+      // For barcode/qr scans, require a code; photo scans are exempt (no barcode).
+      (r.scanType === "photo" || (typeof r.code === "string" && r.code.length > 0)),
+  );
+
+  const sorted = [...safeItems].sort((a, b) => {
     if (sort === "date") return b.createdAt - a.createdAt;
     if (sort === "hotness") return b.hotness.score - a.hotness.score;
     if (sort === "profit") return ((b.priceLow+b.priceHigh)/2 - (b.buyPrice ?? 0)) - ((a.priceLow+a.priceHigh)/2 - (a.buyPrice ?? 0));
@@ -78,7 +93,8 @@ function HistoryPage() {
         ))}
       </div>
 
-      {sorted.length === 0 ? (
+      <HistoryListBoundary onReset={() => { clearHistory(); setItems([]); }}>
+        {sorted.length === 0 ? (
         <div className="mt-10 text-center text-muted-foreground">
           <p>No scans yet.</p>
           <Link to="/scan" search={{ mode: "photo" } as any} className="mt-4 inline-block rounded-xl bg-primary text-primary-foreground px-4 py-2 font-semibold">Start scanning</Link>
@@ -108,7 +124,48 @@ function HistoryPage() {
             </li>
           ))}
         </ul>
-      )}
+        )}
+      </HistoryListBoundary>
     </AppShell>
   );
+}
+
+/* ----------------- Local error boundary for the history list ----------------- */
+
+interface BoundaryProps { children: ReactNode; onReset: () => void; }
+interface BoundaryState { error: Error | null; }
+
+class HistoryListBoundary extends Component<BoundaryProps, BoundaryState> {
+  state: BoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): BoundaryState { return { error }; }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[history] list crashed", error, info);
+  }
+
+  reset = () => {
+    try { this.props.onReset(); } catch {}
+    this.setState({ error: null });
+  };
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="mt-8 rounded-2xl border border-destructive/40 bg-destructive/10 p-5 text-center">
+        <AlertTriangle className="size-6 text-destructive mx-auto mb-2" />
+        <p className="font-display font-bold text-destructive">Couldn't load your history</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          A scan record is corrupted. Clearing history will reset the local store.
+        </p>
+        <button
+          type="button"
+          onClick={this.reset}
+          className="mt-4 rounded-xl bg-destructive text-destructive-foreground px-4 py-2 text-sm font-bold active:scale-95 transition"
+        >
+          Clear history
+        </button>
+      </div>
+    );
+  }
 }
