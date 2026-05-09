@@ -196,11 +196,13 @@ function ScanPage() {
       const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
       const msg = String(e?.message || "");
       if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
+        analytics("scan_failed", { mode: activeMode, error_type: "unauthorized" });
         setNeedsAuth(true);
         setErr("Please sign in to scan.");
         setBusy(false);
         return;
       }
+      analytics("scan_failed", { mode: activeMode, error_type: status ? `http_${status}` : "exception" });
       Sentry.captureException(e, {
         extra: { context: "valuation_failure", barcode: input.code },
       });
