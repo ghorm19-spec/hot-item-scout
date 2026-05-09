@@ -311,6 +311,13 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
 
     confidence = clamp(confidence);
 
+    // ---- Deterministic Hotness inputs ----
+    // The AI's raw salesVelocity/marginPotential/trendScore numbers are noisy guesses.
+    // Dampen them here; real signals computed below from live comp data take precedence.
+    let salesVelocity = clamp((parsed.salesVelocity ?? 0) * 0.5);
+    let marginPotential = clamp((parsed.marginPotential ?? 0) * 0.5);
+    let trendScore = clamp(parsed.trendScore ?? 0);
+
     // Hard server-side confidence gate: anything in 1-69 is suppressed to "unknown"
     // so partially-identified items never reach the display layer as products.
     // Items already at 0 stay 0; items >= 70 proceed normally.
