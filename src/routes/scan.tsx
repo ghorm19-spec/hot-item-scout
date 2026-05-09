@@ -89,6 +89,7 @@ function ScanPage() {
     setNoResult(false);
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
+    analytics("scan_started", { mode: activeMode });
 
     // Pre-validate barcode client-side
     if (activeMode === "barcode" && input.code) {
