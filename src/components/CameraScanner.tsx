@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Zap, ZapOff, Focus, RefreshCw, Sun } from "lucide-react";
 import { track } from "@/lib/telemetry";
 
@@ -13,18 +11,7 @@ interface Props {
   onCapture: (result: { code?: string; imageBase64?: string }) => void;
 }
 
-const supportsNativeBarcode = typeof window !== "undefined" && "BarcodeDetector" in window;
 const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-
-const NATIVE_BARCODE_FORMATS = [
-  "ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","codabar","data_matrix","aztec","pdf417"
-];
-
-const ZXING_BARCODE_FORMATS = [
-  BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-  BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93, BarcodeFormat.ITF,
-  BarcodeFormat.CODABAR, BarcodeFormat.DATA_MATRIX, BarcodeFormat.AZTEC, BarcodeFormat.PDF_417,
-];
 
 export function CameraScanner({ mode, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -38,10 +25,14 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const [boostOn, setBoostOn] = useState(false);
   const [focusRing, setFocusRing] = useState<{ x: number; y: number } | null>(null);
 
-  const detectorRef = useRef<any>(null);
-  const zxingRef = useRef<BrowserMultiFormatReader | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const decodeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const decodePendingRef = useRef(false);
+  const lastDecodeAtRef = useRef(0);
+  const decodeIdRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const firedRef = useRef(false);
+  const DECODE_INTERVAL_MS = 150;
 
   // Multi-frame confirmation: only accept code after seeing it stable across frames
   const candidateRef = useRef<{ code: string; hits: number; firstAt: number } | null>(null);
@@ -51,8 +42,9 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const cleanupCamera = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
-    try { (zxingRef.current as any)?.reset?.(); } catch {}
-    zxingRef.current = null;
+    try { workerRef.current?.terminate(); } catch {}
+    workerRef.current = null;
+    decodePendingRef.current = false;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     trackRef.current = null;
@@ -109,29 +101,7 @@ export function CameraScanner({ mode, onCapture }: Props) {
         }
 
         if (mode === "barcode" || mode === "qr") {
-          if (supportsNativeBarcode) {
-            try {
-              // @ts-expect-error - BarcodeDetector
-              detectorRef.current = new window.BarcodeDetector({
-                formats: mode === "qr" ? ["qr_code"] : NATIVE_BARCODE_FORMATS,
-              });
-              nativeLoop();
-              return;
-            } catch { /* fallthrough */ }
-          }
-          const hints = new Map();
-          hints.set(
-            DecodeHintType.POSSIBLE_FORMATS,
-            mode === "qr" ? [BarcodeFormat.QR_CODE] : ZXING_BARCODE_FORMATS,
-          );
-          hints.set(DecodeHintType.TRY_HARDER, true);
-          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
-          zxingRef.current = reader;
-          if (videoRef.current) {
-            reader.decodeFromVideoElement(videoRef.current, (result) => {
-              if (result && !firedRef.current) considerCode(result.getText());
-            }).catch(() => {});
-          }
+          startWorkerDecodeLoop(mode);
         }
       } catch (e: any) {
         track({ type: "camera.lifecycle", event: "permission-error" });
@@ -199,13 +169,70 @@ export function CameraScanner({ mode, onCapture }: Props) {
     }
   }, [onCapture]);
 
-  const nativeLoop = async () => {
-    if (!videoRef.current || !detectorRef.current || firedRef.current) return;
+  const startWorkerDecodeLoop = (decodeMode: "barcode" | "qr") => {
+    // Spin up worker
     try {
-      const codes = await detectorRef.current.detect(videoRef.current);
-      if (codes && codes.length > 0) considerCode(codes[0].rawValue);
-    } catch {}
-    rafRef.current = requestAnimationFrame(nativeLoop);
+      const worker = new Worker(
+        new URL("../workers/barcodeWorker.ts", import.meta.url),
+        { type: "module" }
+      );
+      workerRef.current = worker;
+      worker.onmessage = (ev: MessageEvent<any>) => {
+        const m = ev.data;
+        decodePendingRef.current = false;
+        if (!m || firedRef.current) return;
+        if (m.type === "result" && m.barcode) considerCode(String(m.barcode));
+      };
+      worker.onerror = () => { decodePendingRef.current = false; };
+    } catch (e) {
+      track({ type: "camera.lifecycle", event: "worker-init-failed" });
+      return;
+    }
+
+    // Reusable offscreen canvas for frame extraction
+    if (!decodeCanvasRef.current) {
+      decodeCanvasRef.current = document.createElement("canvas");
+    }
+
+    const tick = () => {
+      if (firedRef.current || !workerRef.current) return;
+      const v = videoRef.current;
+      const c = decodeCanvasRef.current;
+      if (v && c && v.readyState >= 2 && !decodePendingRef.current) {
+        const now = performance.now();
+        if (now - lastDecodeAtRef.current >= DECODE_INTERVAL_MS) {
+          // Downscale long edge to ~640px for speed; preserve aspect ratio.
+          const vw = v.videoWidth, vh = v.videoHeight;
+          if (vw > 0 && vh > 0) {
+            const maxEdge = 640;
+            const scale = Math.min(1, maxEdge / Math.max(vw, vh));
+            const dw = Math.max(1, Math.round(vw * scale));
+            const dh = Math.max(1, Math.round(vh * scale));
+            if (c.width !== dw) c.width = dw;
+            if (c.height !== dh) c.height = dh;
+            const cx = c.getContext("2d", { willReadFrequently: true });
+            if (cx) {
+              cx.drawImage(v, 0, 0, dw, dh);
+              try {
+                const imageData = cx.getImageData(0, 0, dw, dh);
+                decodePendingRef.current = true;
+                lastDecodeAtRef.current = now;
+                const id = ++decodeIdRef.current;
+                const buffer = imageData.data.buffer;
+                workerRef.current.postMessage(
+                  { type: "decode", id, mode: decodeMode, buffer, width: dw, height: dh },
+                  [buffer],
+                );
+              } catch {
+                decodePendingRef.current = false;
+              }
+            }
+          }
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
   };
 
   const toggleTorch = async () => {
