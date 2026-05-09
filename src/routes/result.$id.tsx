@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, Share2, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck } from "lucide-react";
+import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
-import { shareText } from "@/lib/marketplace";
+import { ShareMenu } from "@/components/ShareMenu";
 import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 
 export const Route = createFileRoute("/result/$id")({
@@ -66,12 +66,6 @@ function ResultPage() {
   const heroImg = rec.imageUrl || rec.thumbnail;
   const hasRealComps = rec.compsAreEstimates === false && (rec.pricingSampleCount || 0) >= 5;
 
-  const share = async () => {
-    const text = shareText(rec);
-    if (navigator.share) { try { await navigator.share({ text }); } catch {} }
-    else { navigator.clipboard?.writeText(text); }
-  };
-
   const persistTweaks = () => {
     const updated = { ...rec, condition, buyPrice };
     const all = getHistory().filter(h => h.id !== rec.id);
@@ -86,9 +80,7 @@ function ResultPage() {
           <ArrowLeft className="size-4" />
         </button>
         <h1 className="font-display font-bold">Result</h1>
-        <button onClick={share} className="size-9 grid place-items-center rounded-full bg-card border border-border">
-          <Share2 className="size-4" />
-        </button>
+        <ShareMenu rec={rec} />
       </header>
 
       {isUnknown && (
