@@ -126,10 +126,8 @@ function ScanPage() {
       playError();
       navigator.vibrate?.([60, 40, 60]);
       track({ type: "valuation.error", message: String(e?.message || e) });
-      Sentry.addBreadcrumb({
-        category: "scan",
-        message: "scan_failed",
-        data: { reason: String(e?.message || e), barcode: input.code },
+      Sentry.captureException(e, {
+        extra: { context: "valuation_failure", barcode: input.code },
       });
       setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
       setBusy(false);
