@@ -120,7 +120,7 @@ function ScanPage() {
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
       const v = cached || await withRetry(
-        () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
+        () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, notes: input.notes, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
         { retries: 2 },
       );
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
