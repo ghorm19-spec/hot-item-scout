@@ -1,34 +1,51 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { lovable } from "@/integrations/lovable";
 import { Loader2 } from "lucide-react";
+
+type Mode = "photo" | "barcode" | "qr";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
+  validateSearch: (s: Record<string, unknown>): { redirect?: string; mode?: Mode } => {
+    const redirect = typeof s.redirect === "string" && s.redirect.startsWith("/") ? s.redirect : undefined;
+    const mode = s.mode === "barcode" || s.mode === "qr" || s.mode === "photo" ? (s.mode as Mode) : undefined;
+    return { redirect, mode };
+  },
   head: () => ({ meta: [{ title: "Sign in — Flip it" }] }),
 });
 
 function LoginPage() {
-  const { user, loading, signInGoogle } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { redirect, mode } = Route.useSearch();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
-  }, [user, loading, navigate]);
+    if (loading || !user) return;
+    if (redirect === "/scan") {
+      navigate({ to: "/scan", search: { mode: mode ?? "photo" } });
+    } else {
+      navigate({ to: redirect ?? "/" } as any);
+    }
+  }, [user, loading, navigate, redirect, mode]);
 
   const handleGoogle = async () => {
     setError(null);
     setBusy(true);
     try {
-      const result = await signInGoogle();
+      // Send the user back to this same /login URL (with redirect/mode preserved)
+      // so the post-login effect above can forward them to their original destination.
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.href,
+      });
       if (result.error) {
         setError("Login failed — please try again");
         setBusy(false);
         return;
       }
-      // redirected: browser navigates away; otherwise auth state listener handles it
     } catch {
       setError("Login failed — please try again");
       setBusy(false);
