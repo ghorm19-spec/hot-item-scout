@@ -128,9 +128,9 @@ function HistoryPage() {
             <div className="size-16 rounded-2xl bg-primary/15 border border-primary/30 grid place-items-center mb-4 glow-primary">
               <ScanLine className="size-8 text-primary" />
             </div>
-            <h2 className="font-display font-black text-xl mb-1">No flips yet</h2>
+            <h2 className="font-display font-black text-xl mb-1">No scans yet</h2>
             <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-              Scan your first item to see your profit here.
+              Go scan your first item!
             </p>
             <Link
               to="/scan"
