@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { playShutter, playSuccess, playDetect, primeAudio } from "@/lib/sounds";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { Zap, ZapOff, Focus, RefreshCw } from "lucide-react";
+import { Zap, ZapOff, Focus, RefreshCw, Sun } from "lucide-react";
 import { track } from "@/lib/telemetry";
 
 type ScanMode = "photo" | "barcode" | "qr";
@@ -14,6 +14,7 @@ interface Props {
 }
 
 const supportsNativeBarcode = typeof window !== "undefined" && "BarcodeDetector" in window;
+const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
 const NATIVE_BARCODE_FORMATS = [
   "ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","codabar","data_matrix","aztec","pdf417"
@@ -34,6 +35,7 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const [state, setState] = useState<ScanState>("starting");
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [boostOn, setBoostOn] = useState(false);
   const [focusRing, setFocusRing] = useState<{ x: number; y: number } | null>(null);
 
   const detectorRef = useRef<any>(null);
@@ -258,12 +260,25 @@ export function CameraScanner({ mode, onCapture }: Props) {
     : mode === "barcode" ? "w-72 h-32"
     : "w-72 h-72";
 
+  // SVG corner-bracket reticle dimensions per mode
+  const reticleW = mode === "qr" ? 256 : mode === "barcode" ? 288 : 288;
+  const reticleH = mode === "qr" ? 256 : mode === "barcode" ? 128 : 288;
+  const locked = state === "detected";
+  const lockInset = locked ? 8 : 0;
+  const reticleColor = locked ? "#00C853" : "#FFFFFF";
+
   return (
     <div
-      className="relative w-full h-full overflow-hidden rounded-2xl bg-black select-none"
+      className="absolute inset-0 overflow-hidden bg-black select-none"
       onClick={handleTapFocus}
     >
-      <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        className="w-full h-full object-cover"
+        style={{ filter: boostOn ? "brightness(1.35) contrast(1.08)" : undefined }}
+      />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Capture flash */}
@@ -273,32 +288,50 @@ export function CameraScanner({ mode, onCapture }: Props) {
         }`}
       />
 
-      {/* Reticle */}
+      {/* Reticle — SVG corner brackets */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div
-          className={`relative ${reticleSize} rounded-2xl border-2 transition-all duration-200 ${
-            state === "detected"
-              ? "border-hot scale-95 shadow-[0_0_60px_rgba(34,197,94,0.5)]"
-              : "border-primary/80 glow-primary"
-          }`}
+        <svg
+          width={reticleW}
+          height={reticleH}
+          viewBox={`0 0 ${reticleW} ${reticleH}`}
+          className="transition-all duration-200"
+          style={{
+            filter: `drop-shadow(0 0 6px rgba(0,0,0,0.55)) drop-shadow(0 0 12px ${locked ? "rgba(0,200,83,0.55)" : "rgba(255,255,255,0.25)"})`,
+          }}
         >
-          <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
-          {/* Corner ticks */}
-          {(["tl","tr","bl","br"] as const).map((p) => (
-            <span
-              key={p}
-              className={`absolute size-5 border-primary ${
-                p === "tl" ? "top-0 left-0 border-t-2 border-l-2 rounded-tl-2xl" :
-                p === "tr" ? "top-0 right-0 border-t-2 border-r-2 rounded-tr-2xl" :
-                p === "bl" ? "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-2xl" :
-                             "bottom-0 right-0 border-b-2 border-r-2 rounded-br-2xl"
-              }`}
-            />
-          ))}
-          {(mode === "barcode" || mode === "qr") && state !== "detected" && (
-            <div className="absolute left-2 right-2 top-1/2 h-0.5 bg-primary shadow-[0_0_12px_var(--primary)] animate-scanline" />
-          )}
-        </div>
+          {(() => {
+            const len = 28;
+            const sw = 3;
+            const x0 = lockInset;
+            const y0 = lockInset;
+            const x1 = reticleW - lockInset;
+            const y1 = reticleH - lockInset;
+            const corners = [
+              `M ${x0} ${y0 + len} L ${x0} ${y0} L ${x0 + len} ${y0}`,
+              `M ${x1 - len} ${y0} L ${x1} ${y0} L ${x1} ${y0 + len}`,
+              `M ${x0} ${y1 - len} L ${x0} ${y1} L ${x0 + len} ${y1}`,
+              `M ${x1 - len} ${y1} L ${x1} ${y1} L ${x1} ${y1 - len}`,
+            ];
+            return corners.map((d, i) => (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke={reticleColor}
+                strokeWidth={sw}
+                strokeLinecap="round"
+                strokeDasharray="60 6"
+                className={locked ? "" : "animate-reticle-pulse"}
+              />
+            ));
+          })()}
+        </svg>
+        {(mode === "barcode" || mode === "qr") && !locked && (
+          <div
+            className="absolute h-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)] animate-scanline"
+            style={{ width: reticleW - 16 }}
+          />
+        )}
       </div>
 
       {/* Tap-to-focus indicator */}
@@ -309,18 +342,30 @@ export function CameraScanner({ mode, onCapture }: Props) {
         />
       )}
 
-      {/* Top-right controls */}
-      {state !== "starting" && torchSupported && (
+      {/* Torch (when supported) or iOS brightness boost fallback */}
+      {state !== "starting" && (torchSupported ? (
         <button
           onClick={(e) => { e.stopPropagation(); toggleTorch(); }}
-          className={`absolute top-3 right-3 size-10 grid place-items-center rounded-full backdrop-blur-md border transition ${
-            torchOn ? "bg-primary text-primary-foreground border-primary" : "bg-black/40 text-white border-white/20"
+          className={`absolute size-11 grid place-items-center rounded-full backdrop-blur-md border transition active:scale-95 ${
+            torchOn ? "bg-primary text-primary-foreground border-primary" : "bg-black/45 text-white border-white/20"
           }`}
+          style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)", right: 16 }}
           aria-label="Toggle torch"
         >
           {torchOn ? <Zap className="size-5" /> : <ZapOff className="size-5" />}
         </button>
-      )}
+      ) : isIOS ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); setBoostOn(v => !v); navigator.vibrate?.(10); }}
+          className={`absolute size-11 grid place-items-center rounded-full backdrop-blur-md border transition active:scale-95 ${
+            boostOn ? "bg-primary text-primary-foreground border-primary" : "bg-black/45 text-white border-white/20"
+          }`}
+          style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)", right: 16 }}
+          aria-label="Boost brightness"
+        >
+          <Sun className="size-5" />
+        </button>
+      ) : null)}
 
       {state === "starting" && !error && (
         <div className="absolute inset-0 grid place-items-center text-sm text-white/80 bg-black/50 backdrop-blur-sm">
