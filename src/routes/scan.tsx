@@ -393,7 +393,7 @@ function ScanPage() {
             />
             <label className="block text-[11px] uppercase tracking-widest text-muted-foreground mb-1">Condition</label>
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {(["New", "Like New", "Good", "Fair"] as const).map((c) => (
+              {(["Poor", "Fair", "Good", "Excellent"] as const).map((c) => (
                 <button
                   key={c}
                   type="button"
