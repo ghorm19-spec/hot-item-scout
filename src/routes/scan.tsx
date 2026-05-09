@@ -257,9 +257,9 @@ function ScanPage() {
   );
 }
 
-function ModeTab({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function ModeTab({ icon, label, active, disabled, onClick }: { icon: React.ReactNode; label: string; active: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"}`}>
+    <button onClick={onClick} aria-disabled={disabled} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"} ${disabled ? "opacity-50" : ""}`}>
       {icon}{label}
     </button>
   );
