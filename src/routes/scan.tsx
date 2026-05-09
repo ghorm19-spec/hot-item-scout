@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n";
 import { validateBarcode } from "@/lib/barcode";
 import { getCachedValuation, setCachedValuation } from "@/lib/product-cache";
 import { primeAudio, playError } from "@/lib/sounds";
-import { track } from "@/lib/telemetry";
+import { track, analytics } from "@/lib/telemetry";
 import { withRetry, isOnline } from "@/lib/network";
 import * as Sentry from "@sentry/react";
 import { useAuth } from "@/lib/auth";
