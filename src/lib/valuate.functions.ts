@@ -46,6 +46,7 @@ export interface ValuationOutput {
   compsAreEstimates: boolean;     // when true, label comps as AI ESTIMATES not sold listings
   confidenceReasons: string[];    // human-readable explanations
   suggestBarcode?: boolean;       // photo-mode: nudge user to scan barcode
+  confidenceGated?: boolean;      // true when server forced unknown due to confidence < 70
   // Real-comp metadata (present only when compsAreEstimates === false)
   pricingSource?: string;
   pricingSampleCount?: number;
@@ -272,6 +273,18 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     }
 
     confidence = clamp(confidence);
+
+    // Hard server-side confidence gate: anything in 1-69 is suppressed to "unknown"
+    // so partially-identified items never reach the display layer as products.
+    // Items already at 0 stay 0; items >= 70 proceed normally.
+    if (confidence > 0 && confidence < 70) {
+      const gated = unknownResult({
+        currency: parsed.currency || data.region?.currency || "USD",
+        warnings: [...warnings, `Identification confidence ${confidence}/100 is below the 70 threshold — result hidden.`],
+        dataSource: verified ? verified.source : "AI vision",
+      });
+      return { ...gated, confidenceGated: true };
+    }
 
     // Derive pricing tier honestly
     const reasons: string[] = [];
