@@ -65,7 +65,7 @@ function ScanPage() {
       return;
     }
 
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setNeedsAuth(false);
     const t0 = performance.now();
     try {
       const region = getRegion();
