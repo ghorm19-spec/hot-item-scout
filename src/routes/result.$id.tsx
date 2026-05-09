@@ -451,6 +451,8 @@ function ResultPage() {
           <p className="text-sm">{rec.flipTip}</p>
         </section>
       )}
+
+      {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
         <MarketplaceExport
           rec={rec}
           trigger={
