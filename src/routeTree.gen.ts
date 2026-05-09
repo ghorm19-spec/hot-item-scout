@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScanRouteImport } from './routes/scan'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as BadgesRouteImport } from './routes/badges'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,6 +25,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ScanRoute = ScanRouteImport.update({
   id: '/scan',
   path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/badges': typeof BadgesRoute
   '/history': typeof HistoryRoute
+  '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
   '/settings': typeof SettingsRoute
   '/result/$id': typeof ResultIdRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/badges': typeof BadgesRoute
   '/history': typeof HistoryRoute
+  '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
   '/settings': typeof SettingsRoute
   '/result/$id': typeof ResultIdRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/badges': typeof BadgesRoute
   '/history': typeof HistoryRoute
+  '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
   '/settings': typeof SettingsRoute
   '/result/$id': typeof ResultIdRoute
@@ -78,16 +87,25 @@ export interface FileRouteTypes {
     | '/'
     | '/badges'
     | '/history'
+    | '/login'
     | '/scan'
     | '/settings'
     | '/result/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/badges' | '/history' | '/scan' | '/settings' | '/result/$id'
+  to:
+    | '/'
+    | '/badges'
+    | '/history'
+    | '/login'
+    | '/scan'
+    | '/settings'
+    | '/result/$id'
   id:
     | '__root__'
     | '/'
     | '/badges'
     | '/history'
+    | '/login'
     | '/scan'
     | '/settings'
     | '/result/$id'
@@ -97,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BadgesRoute: typeof BadgesRoute
   HistoryRoute: typeof HistoryRoute
+  LoginRoute: typeof LoginRoute
   ScanRoute: typeof ScanRoute
   SettingsRoute: typeof SettingsRoute
   ResultIdRoute: typeof ResultIdRoute
@@ -116,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/scan'
       fullPath: '/scan'
       preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -153,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BadgesRoute: BadgesRoute,
   HistoryRoute: HistoryRoute,
+  LoginRoute: LoginRoute,
   ScanRoute: ScanRoute,
   SettingsRoute: SettingsRoute,
   ResultIdRoute: ResultIdRoute,
