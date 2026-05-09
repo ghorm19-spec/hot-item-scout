@@ -34,6 +34,7 @@ function ScanPage() {
   const [activeMode, setActiveMode] = useState<Mode>(mode);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const valuateFn = useServerFn(valuate);
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
