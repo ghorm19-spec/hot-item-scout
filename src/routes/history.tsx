@@ -135,7 +135,7 @@ function HistoryPage() {
             <Link
               to="/scan"
               search={{ mode: "photo" } as any}
-              onClick={() => analytics("empty_state_cta_tapped", { source: "history" })}
+              onClick={() => analytics("empty_state_cta_tapped", { screen: "history" })}
               className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-3 font-bold active:scale-95 transition glow-primary"
             >
               <ScanLine className="size-4" /> Scan Something
