@@ -271,9 +271,9 @@ export function CameraScanner({ mode, onCapture }: Props) {
     if (!v || !c || firedRef.current) return;
     firedRef.current = true;
     setState("captured");
-    primeAudio();
-    playShutter();
+    // Haptic must fire BEFORE audio so the user feels the snap a tick before hearing it.
     navigator.vibrate?.([15, 25, 50]);
+    setTimeout(() => { primeAudio(); playShutter(); }, 15);
     c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d")?.drawImage(v, 0, 0);
     const dataUrl = c.toDataURL("image/jpeg", 0.88);
