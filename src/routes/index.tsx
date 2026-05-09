@@ -80,7 +80,7 @@ function Index() {
           <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/15 text-destructive p-3 text-sm flex items-center justify-between gap-3">
             <span>Please sign in to scan.</span>
             <button
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: "/login", search: { redirect: "/scan", mode: "photo" } })}
               className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition flex items-center gap-1"
             >
               <LogIn className="size-3.5" /> Sign in
