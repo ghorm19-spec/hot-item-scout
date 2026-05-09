@@ -36,12 +36,38 @@ function ResultPage() {
   const [rec, setRec] = useState<ScanRecord | null>(null);
   const [condition, setCondition] = useState<ScanRecord["condition"]>("Good");
   const [buyPrice, setBuyPrice] = useState<number>(0);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const r = getHistory().find(h => h.id === id) || null;
     setRec(r);
-    if (r) { setCondition(r.condition); setBuyPrice(r.buyPrice ?? 0); }
+    if (r) {
+      setCondition(r.condition);
+      setBuyPrice(r.buyPrice ?? 0);
+      setSaved(!!r.savedAt);
+    }
   }, [id]);
+
+  const handleSave = async () => {
+    if (!rec || saving || saved) return;
+    setSaving(true);
+    const updated: ScanRecord = { ...rec, condition, buyPrice, savedAt: Date.now() };
+    try {
+      await saveScanAsync(updated);
+      setRec(updated);
+      setSaved(true);
+      toast.success("✓ Saved to your flips", { duration: 2500 });
+    } catch (e) {
+      console.warn("save failed", e);
+      toast.error("Save failed — tap to retry", {
+        duration: 6000,
+        action: { label: "Retry", onClick: () => handleSave() },
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const adjusted = useMemo(() => {
     if (!rec) return null;
