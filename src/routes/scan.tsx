@@ -244,7 +244,7 @@ function ScanPage() {
             <span>{err}</span>
             {needsAuth && (
               <button
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/login", search: { redirect: "/scan", mode: activeMode } })}
                 className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition"
               >
                 Sign in
