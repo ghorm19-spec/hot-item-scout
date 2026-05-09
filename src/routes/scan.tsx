@@ -214,7 +214,7 @@ function ScanPage() {
           </div>
         </div>
 
-        {/* Bottom controls: mode tabs + hint */}
+        {/* Bottom controls: mode tabs + hint — hidden while camera is active so capture button stays clear */}
         <div
           className="absolute bottom-0 left-0 right-0 flex flex-col gap-3"
           style={{
@@ -222,6 +222,7 @@ function ScanPage() {
             paddingLeft: 16,
             paddingRight: 16,
             pointerEvents: "auto",
+            display: cameraActive ? "none" : "flex",
           }}
         >
           <p className="text-[11px] text-white/85 text-center drop-shadow">
@@ -230,9 +231,9 @@ function ScanPage() {
             {activeMode === "qr" && t("scan.hint.qr")}
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); }} />
-            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); }} />
-            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); }} />
+            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); restartScanner(); }} />
+            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); restartScanner(); }} />
+            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); restartScanner(); }} />
           </div>
         </div>
       </div>
