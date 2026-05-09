@@ -8,7 +8,14 @@ import {
   BinaryBitmap,
 } from "@zxing/library";
 
-type DecodeMsg = { type: "decode"; id: number; mode: "barcode" | "qr"; imageData: ImageData };
+type DecodeMsg = {
+  type: "decode";
+  id: number;
+  mode: "barcode" | "qr";
+  buffer: ArrayBuffer;
+  width: number;
+  height: number;
+};
 type InMsg = DecodeMsg;
 
 const ctx: DedicatedWorkerGlobalScope = self as any;
@@ -80,7 +87,9 @@ ctx.addEventListener("message", async (ev: MessageEvent<InMsg>) => {
   const msg = ev.data;
   if (!msg || msg.type !== "decode") return;
   try {
-    const barcode = await decode(msg.mode, msg.imageData);
+    const data = new Uint8ClampedArray(msg.buffer);
+    const imageData = new ImageData(data, msg.width, msg.height);
+    const barcode = await decode(msg.mode, imageData);
     ctx.postMessage({ type: "result", id: msg.id, barcode });
   } catch (e: any) {
     ctx.postMessage({ type: "error", id: msg.id, message: String(e?.message || e) });
