@@ -135,21 +135,29 @@ export function saveScan(r: ScanRecord) {
   _cache = applyCapAndTtl([r, ..._cache.filter((x) => x.id !== r.id)]);
   notify();
   if (typeof window === "undefined") return;
-  void (async () => {
-    try {
-      const db = await openHistoryDB();
-      await db.put(STORE, r);
-      // Enforce cap on disk too: drop entries beyond MAX_ENTRIES (oldest first).
-      const all = ((await db.getAll(STORE)) as ScanRecord[])
-        .filter((x) => x && typeof x.id === "string" && typeof x.createdAt === "number")
-        .sort((a, b) => b.createdAt - a.createdAt);
-      if (all.length > MAX_ENTRIES) {
-        const tx = db.transaction(STORE, "readwrite");
-        for (let i = MAX_ENTRIES; i < all.length; i++) await tx.store.delete(all[i].id);
-        await tx.done;
-      }
-    } catch (e) { console.warn("[storage] saveScan failed", e); }
-  })();
+  void persistScan(r);
+}
+
+/** Awaits the IndexedDB write so callers can show success / failure toasts. */
+export async function saveScanAsync(r: ScanRecord): Promise<void> {
+  _cache = applyCapAndTtl([r, ..._cache.filter((x) => x.id !== r.id)]);
+  notify();
+  if (typeof window === "undefined") return;
+  await persistScan(r);
+}
+
+async function persistScan(r: ScanRecord): Promise<void> {
+  const db = await openHistoryDB();
+  await db.put(STORE, r);
+  // Enforce cap on disk too: drop entries beyond MAX_ENTRIES (oldest first).
+  const all = ((await db.getAll(STORE)) as ScanRecord[])
+    .filter((x) => x && typeof x.id === "string" && typeof x.createdAt === "number")
+    .sort((a, b) => b.createdAt - a.createdAt);
+  if (all.length > MAX_ENTRIES) {
+    const tx = db.transaction(STORE, "readwrite");
+    for (let i = MAX_ENTRIES; i < all.length; i++) await tx.store.delete(all[i].id);
+    await tx.done;
+  }
 }
 
 export function clearHistory() {
