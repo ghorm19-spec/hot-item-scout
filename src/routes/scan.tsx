@@ -131,6 +131,7 @@ function ScanPage() {
       const lowConfidence = !v.unknown && (v.confidence ?? 0) < 35;
       if (activeMode === "photo" && !input.notes && (v.unknown || lowConfidence)) {
         track({ type: "valuation.error", message: v.unknown ? "no_match" : "low_confidence" });
+        analytics("scan_failed", { mode: activeMode, error_type: v.unknown ? "no_match" : "low_confidence" });
         setNoResult(true);
         setBusy(false);
         return;
