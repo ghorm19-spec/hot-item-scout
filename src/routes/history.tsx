@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
 import { AlertTriangle, ScanLine } from "lucide-react";
+import { analytics } from "@/lib/telemetry";
 
 type Sort = "date" | "hotness" | "profit" | "category";
 
