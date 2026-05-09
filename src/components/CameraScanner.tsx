@@ -41,12 +41,39 @@ export function CameraScanner({ mode, onCapture }: Props) {
   const STABLE_WINDOW_MS = 800;
 
   const cleanupCamera = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    // 1. Cancel any pending animation frame loop
+    if (rafRef.current != null) {
+      try { cancelAnimationFrame(rafRef.current); } catch {}
+    }
     rafRef.current = null;
-    try { workerRef.current?.terminate(); } catch {}
-    workerRef.current = null;
+
+    // 2. Terminate the decode worker
+    if (workerRef.current) {
+      try { workerRef.current.terminate(); } catch {}
+      workerRef.current = null;
+    }
     decodePendingRef.current = false;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+
+    // 3. Detach the stream from the video element BEFORE stopping tracks
+    //    (some Android browsers hold a camera lock until srcObject is cleared)
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+      } catch {}
+      try {
+        videoRef.current.srcObject = null;
+      } catch {}
+    }
+
+    // 4. Explicitly stop every MediaStreamTrack
+    const stream = streamRef.current;
+    if (stream) {
+      try {
+        stream.getTracks().forEach((track) => {
+          try { track.stop(); } catch {}
+        });
+      } catch {}
+    }
     streamRef.current = null;
     trackRef.current = null;
   }, []);
