@@ -49,9 +49,17 @@ function ScanPage() {
     setErr("Please sign in to scan.");
   };
 
+  const restartScanner = () => {
+    setErr(null);
+    setNeedsAuth(false);
+    setBusy(false);
+    setScannerKey((k) => k + 1);
+  };
+
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
     if (signedOut) { requireAuth(); return; }
+    setLastInput(input);
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
 
