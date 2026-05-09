@@ -185,7 +185,7 @@ function ScanPage() {
       style={{ width: "100dvw", height: "100dvh" }}
     >
       {/* Full-screen camera fills the container */}
-      <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />
+      {scannerMounted && <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />}
 
       {/* Floating overlays */}
       <div className="pointer-events-none absolute inset-0">
