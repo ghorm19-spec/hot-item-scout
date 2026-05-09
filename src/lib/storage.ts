@@ -39,6 +39,8 @@ export interface ScanRecord {
   pricingLow?: number;
   pricingHigh?: number;
   pricingRetrievedAt?: string;     // ISO
+  // User-confirmed save (separate from auto-stash on capture)
+  savedAt?: number;
 }
 
 /* ----------------------------- IndexedDB layer ----------------------------- */
