@@ -395,6 +395,43 @@ function ResultPage() {
         />
       )}
 
+      {/* Quick copy — single-tap plain-text listing for any platform */}
+      {!isUnknown && (
+        <button
+          onClick={handleCopyListing}
+          aria-live="polite"
+          className={`mt-3 w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition border ${
+            copied
+              ? "bg-hot/15 text-hot border-hot/40"
+              : "bg-card text-foreground border-border"
+          }`}
+        >
+          {copied ? <><ClipboardCheck className="size-4" /> Copied!</> : <><Copy className="size-4" /> Copy listing</>}
+        </button>
+      )}
+
+      {/* Where to sell — deep links to each platform's new-listing page */}
+      {!isUnknown && (
+        <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Where to sell</p>
+          <div className="flex flex-col gap-2">
+            {DEEP_LINK_PLATFORMS.filter((p) => p.show(rec)).map((p) => (
+              <a
+                key={p.key}
+                href={p.url(rec.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analytics("deep_link_tapped", { platform: p.key })}
+                className="flex items-center justify-between rounded-xl bg-background border border-border px-4 py-3 text-sm font-semibold active:scale-[0.99] transition"
+              >
+                <span>{p.label}</span>
+                <span className="text-primary text-xs font-bold">List it now →</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="mt-4 flex flex-col gap-2">
         <button
           onClick={handleSave}
@@ -418,7 +455,10 @@ function ResultPage() {
         </button>
 
         <button
-          onClick={() => navigate({ to: "/scan", search: { mode: rec.scanType } as any })}
+          onClick={() => {
+            analytics("rescan_tapped", { previous_mode: rec.scanType });
+            navigate({ to: "/scan", search: { mode: rec.scanType } as any });
+          }}
           className="w-full rounded-2xl bg-card border border-border py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition"
         >
           <ScanLine className="size-4" /> Scan Another Item
