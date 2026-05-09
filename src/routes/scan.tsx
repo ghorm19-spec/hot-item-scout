@@ -181,6 +181,12 @@ function ScanPage() {
       };
       saveScan(rec);
       track({ type: "valuation.ok", verified: !!v.verified, tier: v.pricingTier, confidence: rec.confidence, ms: Math.round(performance.now() - t0) });
+      analytics("scan_completed", {
+        mode: activeMode,
+        item_category: rec.category,
+        hotness_score: rec.hotness.score,
+        profit_amount: Math.round((rec.priceLow + rec.priceHigh) / 2),
+      });
       navigate({ to: "/result/$id", params: { id: rec.id } });
     } catch (e: any) {
       console.error("Valuation failed", e);
