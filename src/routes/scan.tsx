@@ -249,20 +249,50 @@ function ScanPage() {
       )}
 
       {err && (
-        <div
-          className="absolute left-4 right-4 z-[105] rounded-xl border border-destructive/40 bg-destructive/15 backdrop-blur-md text-destructive p-3 text-sm"
-          style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)" }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span>{err}</span>
-            {needsAuth && (
+        <div className="absolute inset-0 z-[105] grid place-items-center p-6 bg-black/75 backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-2xl border border-destructive/40 bg-card text-card-foreground p-5 shadow-2xl">
+            <p className="font-display font-bold text-base mb-1">
+              {needsAuth ? "Sign in required" : "Scan didn't go through"}
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">{err}</p>
+            <div className="flex flex-col gap-2">
+              {needsAuth ? (
+                <button
+                  onClick={() => navigate({ to: "/login", search: { redirect: "/scan", mode: activeMode } })}
+                  className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold active:scale-95 transition"
+                >
+                  Sign in
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      if (lastInput && (activeMode !== "photo" ? lastInput.code : lastInput.imageBase64)) {
+                        setErr(null);
+                        handleResult(lastInput);
+                      } else {
+                        restartScanner();
+                      }
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold active:scale-95 transition"
+                  >
+                    <RefreshCw className="size-4" /> Retry
+                  </button>
+                  <button
+                    onClick={restartScanner}
+                    className="w-full rounded-xl bg-secondary text-secondary-foreground px-4 py-2.5 text-sm font-semibold active:scale-95 transition"
+                  >
+                    Scan something else
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => navigate({ to: "/login", search: { redirect: "/scan", mode: activeMode } })}
-                className="shrink-0 rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold active:scale-95 transition"
+                onClick={() => navigate({ to: "/" })}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold active:scale-95 transition"
               >
-                Sign in
+                <Home className="size-4" /> Go home
               </button>
-            )}
+            </div>
           </div>
         </div>
       )}
