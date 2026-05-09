@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppShell } from "@/components/AppShell";
 import { CameraScanner } from "@/components/CameraScanner";
 import { Camera, ScanLine, QrCode, Upload, ArrowLeft, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -129,40 +128,70 @@ function ScanPage() {
   };
 
   return (
-    <AppShell>
-      <header className="pt-4 pb-3 flex items-center justify-between">
-        <button onClick={() => navigate({ to: "/" })} className="size-9 grid place-items-center rounded-full bg-card border border-border">
-          <ArrowLeft className="size-4" />
-        </button>
-        <div className="flex items-center gap-2">
-          <h1 className="font-display font-bold">{t("scan.title")}</h1>
-          <LanguagePicker />
-          <RegionPicker />
+    <div
+      className="fixed inset-0 z-[100] bg-black"
+      style={{ width: "100dvw", height: "100dvh" }}
+    >
+      {/* Full-screen camera fills the container */}
+      <CameraScanner mode={activeMode} onCapture={handleResult} />
+
+      {/* Floating overlays */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* Top controls */}
+        <div
+          className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2"
+          style={{
+            paddingTop: "max(env(safe-area-inset-top), 16px)",
+            paddingLeft: 16,
+            paddingRight: 16,
+            pointerEvents: "auto",
+          }}
+        >
+          <button
+            onClick={() => navigate({ to: "/" })}
+            className="size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white active:scale-95 transition"
+            aria-label="Back"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <div className="flex items-center gap-2">
+            <LanguagePicker />
+            <RegionPicker />
+            <label
+              className="size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white cursor-pointer active:scale-95 transition"
+              aria-label="Upload photo"
+            >
+              <Upload className="size-4" />
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} />
+            </label>
+          </div>
         </div>
-        <label className="size-9 grid place-items-center rounded-full bg-card border border-border cursor-pointer">
-          <Upload className="size-4" />
-          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} />
-        </label>
-      </header>
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
-        <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
-        <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
+        {/* Bottom controls: mode tabs + hint */}
+        <div
+          className="absolute bottom-0 left-0 right-0 flex flex-col gap-3"
+          style={{
+            paddingBottom: "max(env(safe-area-inset-bottom), 20px)",
+            paddingLeft: 16,
+            paddingRight: 16,
+            pointerEvents: "auto",
+          }}
+        >
+          <p className="text-[11px] text-white/85 text-center drop-shadow">
+            {activeMode === "photo" && t("scan.hint.photo")}
+            {activeMode === "barcode" && t("scan.hint.barcode")}
+            {activeMode === "qr" && t("scan.hint.qr")}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
+            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
+            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
+          </div>
+        </div>
       </div>
-
-      <div className="aspect-[3/4] w-full">
-        <CameraScanner mode={activeMode} onCapture={handleResult} />
-      </div>
-
-      <p className="mt-3 text-xs text-muted-foreground text-center">
-        {activeMode === "photo" && t("scan.hint.photo")}
-        {activeMode === "barcode" && t("scan.hint.barcode")}
-        {activeMode === "qr" && t("scan.hint.qr")}
-      </p>
 
       {busy && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[110] grid place-items-center bg-background/80 backdrop-blur-sm">
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col items-center gap-3 glow-primary">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="font-display font-bold">{t("scan.scoring")}</p>
@@ -172,17 +201,20 @@ function ScanPage() {
       )}
 
       {err && (
-        <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">
+        <div
+          className="absolute left-4 right-4 z-[105] rounded-xl border border-destructive/40 bg-destructive/15 backdrop-blur-md text-destructive p-3 text-sm"
+          style={{ top: "calc(max(env(safe-area-inset-top), 16px) + 56px)" }}
+        >
           {err}
         </div>
       )}
-    </AppShell>
+    </div>
   );
 }
 
 function ModeTab({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-card border-border text-muted-foreground"}`}>
+    <button onClick={onClick} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"}`}>
       {icon}{label}
     </button>
   );

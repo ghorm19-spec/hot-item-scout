@@ -97,6 +97,7 @@
   }
   .animate-scanline { animation: scanline 1.6s ease-in-out infinite; }
   .animate-ping-once { animation: ping-once 0.7s ease-out forwards; }
+  .animate-reticle-pulse { animation: reticle-pulse 2s ease-in-out infinite; }
   .animate-rise { animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
   .shimmer {
     background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 18%, transparent), transparent);
@@ -121,6 +122,10 @@
 @keyframes shimmer {
   from { background-position: 200% 0; }
   to   { background-position: -200% 0; }
+}
+@keyframes reticle-pulse {
+  0%, 100% { stroke-dashoffset: 0;  opacity: 0.85; }
+  50%      { stroke-dashoffset: 32; opacity: 1; }
 }
 
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
