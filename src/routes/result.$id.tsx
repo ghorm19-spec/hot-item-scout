@@ -76,6 +76,31 @@ function ResultPage() {
     }
   };
 
+  const handleCopyListing = async () => {
+    if (!rec || !adjusted) return;
+    const country = (() => { try { return getRegion().name; } catch { return ""; } })();
+    const price = new Intl.NumberFormat(undefined, { style: "currency", currency: rec.currency, maximumFractionDigits: 2 }).format(adjusted.mid);
+    const tip = (rec.flipTip || "").split(/(?<=[.!?])\s+/)[0]?.trim() || "";
+    const lines = [
+      `${rec.title} — ${condition}`,
+      `Asking: ${price}`,
+      tip,
+      country ? `Ships from: ${country}` : null,
+      "Message me with any questions!",
+    ].filter(Boolean);
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      navigator.vibrate?.(15);
+      const platforms = DEEP_LINK_PLATFORMS.filter(p => p.show(rec)).length;
+      analytics("listing_copied", { platform_count: platforms });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy — try again");
+    }
+  };
+
   const adjusted = useMemo(() => {
     if (!rec) return null;
     const m = CONDITION_MULT[condition] ?? 1;
