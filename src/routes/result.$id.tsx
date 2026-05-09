@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, saveScan, saveScanAsync, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
-import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck, Bookmark, Check, Loader2, Activity } from "lucide-react";
+import { ArrowLeft, MapPin, TrendingUp, ScanLine, ShieldCheck, AlertTriangle, HelpCircle, Megaphone, Sparkles, Info, Settings as SettingsIcon, BadgeCheck, Bookmark, Check, Loader2, Activity, Copy, ClipboardCheck } from "lucide-react";
 import { MarketplaceExport } from "@/components/MarketplaceExport";
 import { ShareMenu } from "@/components/ShareMenu";
 import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 import { toast } from "sonner";
+import { analytics } from "@/lib/telemetry";
+import { getRegion } from "@/lib/regions";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
