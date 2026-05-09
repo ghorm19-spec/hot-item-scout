@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { getHistory, clearHistory, type ScanRecord } from "@/lib/storage";
+import { getHistory, clearHistory, saveScan, type ScanRecord } from "@/lib/storage";
 import { tierClass } from "@/lib/hotness";
 
 type Sort = "date" | "hotness" | "profit" | "category";
@@ -14,8 +15,30 @@ export const Route = createFileRoute("/history")({
 function HistoryPage() {
   const [items, setItems] = useState<ScanRecord[]>([]);
   const [sort, setSort] = useState<Sort>("date");
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setItems(getHistory()); }, []);
+
+  const handleClear = () => {
+    setItems((prev) => {
+      if (prev.length === 0) return prev;
+      const snapshot = prev;
+      clearHistory();
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      toast("Scan history cleared", {
+        duration: 2000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            const ordered = [...snapshot].sort((a, b) => a.createdAt - b.createdAt);
+            ordered.forEach((r) => saveScan(r));
+            setItems(getHistory());
+          },
+        },
+      });
+      return [];
+    });
+  };
 
   const sorted = [...items].sort((a, b) => {
     if (sort === "date") return b.createdAt - a.createdAt;
@@ -30,8 +53,17 @@ function HistoryPage() {
         <h1 className="font-display font-black text-2xl">History</h1>
         {items.length > 0 && (
           <button
-            onClick={() => { if (confirm("Clear all scans?")) { clearHistory(); setItems([]); } }}
-            className="text-xs text-muted-foreground"
+            type="button"
+            aria-label="Clear scan history"
+            onTouchStart={() => { try { navigator.vibrate?.([8, 0, 12]); } catch {} }}
+            onClick={handleClear}
+            className="clear-button relative text-xs text-muted-foreground font-medium rounded-lg active:scale-95 transition-transform duration-[60ms] ease-out before:content-[''] before:absolute before:-inset-2"
+            style={{
+              minWidth: 44,
+              minHeight: 44,
+              padding: "12px 20px",
+              WebkitTapHighlightColor: "transparent",
+            }}
           >Clear</button>
         )}
       </header>
