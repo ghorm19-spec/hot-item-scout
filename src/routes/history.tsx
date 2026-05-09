@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, memo, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
@@ -54,22 +54,23 @@ function HistoryPage() {
     });
   };
 
-  // Drop malformed entries before sorting/render so a single bad row can't crash the list.
-  const safeItems = items.filter(
-    (r) =>
-      r &&
-      typeof r.id === "string" && r.id.length > 0 &&
-      typeof r.createdAt === "number" && Number.isFinite(r.createdAt) &&
-      // For barcode/qr scans, require a code; photo scans are exempt (no barcode).
-      (r.scanType === "photo" || (typeof r.code === "string" && r.code.length > 0)),
-  );
-
-  const sorted = [...safeItems].sort((a, b) => {
-    if (sort === "date") return b.createdAt - a.createdAt;
-    if (sort === "hotness") return b.hotness.score - a.hotness.score;
-    if (sort === "profit") return ((b.priceLow+b.priceHigh)/2 - (b.buyPrice ?? 0)) - ((a.priceLow+a.priceHigh)/2 - (a.buyPrice ?? 0));
-    return a.category.localeCompare(b.category);
-  });
+  // Drop malformed entries + sort — memoized so it only recomputes when items or sort change.
+  const sorted = useMemo(() => {
+    const safeItems = items.filter(
+      (r) =>
+        r &&
+        typeof r.id === "string" && r.id.length > 0 &&
+        typeof r.createdAt === "number" && Number.isFinite(r.createdAt) &&
+        // For barcode/qr scans, require a code; photo scans are exempt (no barcode).
+        (r.scanType === "photo" || (typeof r.code === "string" && r.code.length > 0)),
+    );
+    return [...safeItems].sort((a, b) => {
+      if (sort === "date") return b.createdAt - a.createdAt;
+      if (sort === "hotness") return b.hotness.score - a.hotness.score;
+      if (sort === "profit") return ((b.priceLow+b.priceHigh)/2 - (b.buyPrice ?? 0)) - ((a.priceLow+a.priceHigh)/2 - (a.buyPrice ?? 0));
+      return a.category.localeCompare(b.category);
+    });
+  }, [items, sort]);
 
   return (
     <AppShell>
@@ -110,28 +111,7 @@ function HistoryPage() {
         </div>
       ) : (
         <ul className="space-y-2">
-          {sorted.map(r => (
-            <li key={r.id}>
-              <Link to="/result/$id" params={{ id: r.id }} className={`flex gap-3 p-3 rounded-2xl border bg-card ${tierClass(r.hotness.tier)}`}>
-                {r.thumbnail ? (
-                  <img src={r.thumbnail} alt="" className="size-16 rounded-xl object-cover border border-border" />
-                ) : (
-                  <div className="size-16 rounded-xl bg-secondary grid place-items-center text-2xl">
-                    {r.scanType === "qr" ? "🔳" : r.scanType === "barcode" ? "▦" : "📦"}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.category}</p>
-                  <p className="font-semibold truncate">{r.title}</p>
-                  <p className="text-xs text-muted-foreground">{r.currency || "USD"} {r.priceLow}–{r.priceHigh}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl">{r.hotness.emoji}</div>
-                  <div className="text-xs font-display font-bold">{r.hotness.score}</div>
-                </div>
-              </Link>
-            </li>
-          ))}
+          {sorted.map(r => (<HistoryRow key={r.id} r={r} />))}
         </ul>
         )}
       </HistoryListBoundary>
@@ -139,12 +119,39 @@ function HistoryPage() {
   );
 }
 
+/* ----------------- Memoized row component ----------------- */
+
+const HistoryRow = memo(function HistoryRow({ r }: { r: ScanRecord }) {
+  return (
+    <li>
+      <Link to="/result/$id" params={{ id: r.id }} className={`flex gap-3 p-3 rounded-2xl border bg-card ${tierClass(r.hotness.tier)}`}>
+        {r.thumbnail ? (
+          <img src={r.thumbnail} alt="" className="size-16 rounded-xl object-cover border border-border" />
+        ) : (
+          <div className="size-16 rounded-xl bg-secondary grid place-items-center text-2xl">
+            {r.scanType === "qr" ? "🔳" : r.scanType === "barcode" ? "▦" : "📦"}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.category}</p>
+          <p className="font-semibold truncate">{r.title}</p>
+          <p className="text-xs text-muted-foreground">{r.currency || "USD"} {r.priceLow}–{r.priceHigh}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl">{r.hotness.emoji}</div>
+          <div className="text-xs font-display font-bold">{r.hotness.score}</div>
+        </div>
+      </Link>
+    </li>
+  );
+});
+
 /* ----------------- Local error boundary for the history list ----------------- */
 
 interface BoundaryProps { children: ReactNode; onReset: () => void; }
 interface BoundaryState { error: Error | null; }
 
-class HistoryListBoundary extends Component<BoundaryProps, BoundaryState> {
+class HistoryListBoundaryImpl extends Component<BoundaryProps, BoundaryState> {
   state: BoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): BoundaryState { return { error }; }
@@ -178,3 +185,5 @@ class HistoryListBoundary extends Component<BoundaryProps, BoundaryState> {
     );
   }
 }
+
+const HistoryListBoundary = memo(HistoryListBoundaryImpl);
