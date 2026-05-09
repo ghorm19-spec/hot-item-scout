@@ -47,6 +47,7 @@ function ScanPage() {
 
   const handleResult = async (input: { code?: string; imageBase64?: string }) => {
     if (busy) return;
+    if (signedOut) { requireAuth(); return; }
 
     track({ type: "scan.captured", mode: activeMode, ms: 0 });
 
