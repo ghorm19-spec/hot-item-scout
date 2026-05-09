@@ -423,6 +423,27 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       }
     }
 
+    // ---- Real-signal Hotness recomputation ----
+    // salesVelocity ← from real sample_count (sell-through proxy: more recent solds = faster moving)
+    // marginPotential ← from real price spread relative to median (volatility = upside)
+    if (realComps && !realComps.is_mock && realComps.sample_count > 0) {
+      const sv = Math.min(100, realComps.sample_count * 4); // 25 sold ≈ 100
+      salesVelocity = Math.max(salesVelocity, sv);
+
+      const median = realComps.median || (realComps.low + realComps.high) / 2;
+      if (median > 0) {
+        const spreadPct = ((realComps.high - realComps.low) / median) * 100;
+        // Sweet spot: ~60% spread = max margin potential. Too narrow = commodity, too wide = risky.
+        const mp = Math.min(100, Math.max(0, 100 - Math.abs(spreadPct - 60)));
+        marginPotential = Math.max(marginPotential, mp);
+      }
+    } else if (priceLow > 0 && priceHigh > priceLow) {
+      // Fallback: use AI price band spread, but only as a weak signal (already dampened above).
+      const median = (priceLow + priceHigh) / 2;
+      const spreadPct = ((priceHigh - priceLow) / median) * 100;
+      marginPotential = Math.max(marginPotential, Math.min(100, Math.max(0, 100 - Math.abs(spreadPct - 60))) * 0.6);
+    }
+
     return {
       title,
       category,
@@ -432,9 +453,9 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       currency: parsed.currency || data.region?.currency || "USD",
       condition: parsed.condition || "Good",
       comps: comps2,
-      salesVelocity: clamp(parsed.salesVelocity ?? 0),
-      marginPotential: clamp(parsed.marginPotential ?? 0),
-      trendScore: clamp(parsed.trendScore ?? 0),
+      salesVelocity: clamp(salesVelocity),
+      marginPotential: clamp(marginPotential),
+      trendScore: clamp(trendScore),
       confidence,
       torontoBoost: !!parsed.torontoBoost,
       neighbourhood: parsed.neighbourhood,
