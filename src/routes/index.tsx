@@ -22,12 +22,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = useNavigate();
   const { t } = useT();
+  const { user, loading: authLoading } = useAuth();
+  const signedOut = !authLoading && !user;
   const [count, setCount] = useState(0);
   const [region, setRegion] = useState<Region | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   useEffect(() => { setCount(getHistory().length); setRegion(getRegion()); }, []);
 
-  const go = (mode: "photo" | "barcode" | "qr") =>
+  const go = (mode: "photo" | "barcode" | "qr") => {
+    if (signedOut) { setShowAuthPrompt(true); return; }
     navigate({ to: "/scan", search: { mode } as any });
+  };
 
   return (
     <AppShell>
