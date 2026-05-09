@@ -105,9 +105,40 @@ function HistoryPage() {
 
       <HistoryListBoundary onReset={() => { clearHistory(); setItems([]); }}>
         {sorted.length === 0 ? (
-        <div className="mt-10 text-center text-muted-foreground">
-          <p>No scans yet.</p>
-          <Link to="/scan" search={{ mode: "photo" } as any} className="mt-4 inline-block rounded-xl bg-primary text-primary-foreground px-4 py-2 font-semibold">Start scanning</Link>
+        <div className="mt-10 relative">
+          {/* Ghost card behind the empty-state — fake data, never persisted. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-4 top-2 rounded-2xl border border-border bg-card/60 p-3 flex gap-3 opacity-20 blur-[1px] pointer-events-none"
+          >
+            <div className="size-16 rounded-xl bg-secondary grid place-items-center text-2xl">👟</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Sneakers</p>
+              <p className="font-semibold truncate">Nike Dunk Low Panda</p>
+              <p className="text-xs text-muted-foreground">USD 90–140</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl">🔥</div>
+              <div className="text-xs font-display font-bold">82</div>
+            </div>
+          </div>
+
+          <div className="relative mt-16 flex flex-col items-center text-center px-6">
+            <div className="size-16 rounded-2xl bg-primary/15 border border-primary/30 grid place-items-center mb-4 glow-primary">
+              <ScanLine className="size-8 text-primary" />
+            </div>
+            <h2 className="font-display font-black text-xl mb-1">No flips yet</h2>
+            <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+              Scan your first item to see your profit here.
+            </p>
+            <Link
+              to="/scan"
+              search={{ mode: "photo" } as any}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-3 font-bold active:scale-95 transition glow-primary"
+            >
+              <ScanLine className="size-4" /> Scan Something
+            </Link>
+          </div>
         </div>
       ) : (
         <ul className="space-y-2">
