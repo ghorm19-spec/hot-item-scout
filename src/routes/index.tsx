@@ -131,9 +131,9 @@ function Index() {
   );
 }
 
-function ModeBtn({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+function ModeBtn({ label, icon, disabled, onClick }: { label: string; icon: React.ReactNode; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded-xl bg-card border border-border py-3 flex flex-col items-center gap-1 text-xs font-medium active:scale-95 transition">
+    <button onClick={onClick} aria-disabled={disabled} className={`rounded-xl bg-card border border-border py-3 flex flex-col items-center gap-1 text-xs font-medium transition ${disabled ? "opacity-50" : "active:scale-95"}`}>
       <span className="text-primary">{icon}</span>
       {label}
     </button>
