@@ -10,6 +10,8 @@ import { calculateNetProceeds } from "@/lib/pricing/feeCalculator";
 import { toast } from "sonner";
 import { analytics } from "@/lib/telemetry";
 import { getRegion } from "@/lib/regions";
+import { buildSellStrategy, formatPrice as fmtP } from "@/lib/sellStrategy";
+import { Clock, Flame } from "lucide-react";
 
 export const Route = createFileRoute("/result/$id")({
   component: ResultPage,
