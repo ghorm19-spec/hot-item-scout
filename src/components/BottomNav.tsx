@@ -11,7 +11,10 @@ const items = [
 export function BottomNav() {
   const loc = useLocation();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/85 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+    <nav
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/85 backdrop-blur-xl"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+    >
       <ul className="grid grid-cols-4 max-w-md mx-auto">
         {items.map(({ to, label, Icon }) => {
           const active = loc.pathname === to || (to !== "/" && loc.pathname.startsWith(to));
