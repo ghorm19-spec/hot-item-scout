@@ -72,16 +72,14 @@ export function CameraScanner({ mode, onCapture }: Props) {
               width: { ideal: 640 },
               height: { ideal: 480 },
               frameRate: { ideal: 15 },
-              // @ts-expect-error advanced focus hint
-              focusMode: "continuous",
+              ...({ focusMode: "continuous" } as any),
             }
           : {
               facingMode: { ideal: "environment" },
               width: { ideal: 1920 },
               height: { ideal: 1080 },
               frameRate: { ideal: 30 },
-              // @ts-expect-error advanced focus hint
-              focusMode: "continuous",
+              ...({ focusMode: "continuous" } as any),
             };
         const stream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints,
