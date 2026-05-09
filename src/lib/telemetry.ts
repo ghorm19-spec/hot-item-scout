@@ -13,7 +13,32 @@ export type TelemetryEvent =
   | { type: "network.offline"; ts: number }
   | { type: "network.online"; ts: number }
   | { type: "camera.lifecycle"; event: string; ts: number }
-  | { type: "perf.long_task"; ms: number; ts: number };
+  | { type: "perf.long_task"; ms: number; ts: number }
+  | { type: "analytics"; name: string; props: Record<string, string | number | boolean | null>; ts: number };
+
+/**
+ * Product analytics — fire-and-forget. Never blocks UI, never throws,
+ * never includes PII. Pipes through the same buffered telemetry channel.
+ */
+export type AnalyticsEvent =
+  | { name: "scan_started"; props: { mode: "photo" | "barcode" | "qr" } }
+  | { name: "scan_completed"; props: { mode: string; item_category: string; hotness_score: number; profit_amount: number } }
+  | { name: "scan_failed"; props: { mode: string; error_type: string } }
+  | { name: "result_saved"; props: { item_category: string; profit_amount: number } }
+  | { name: "result_dismissed"; props: { item_category: string } }
+  | { name: "rescan_tapped"; props: { previous_mode: string } }
+  | { name: "listing_copied"; props: { platform_count: number } }
+  | { name: "deep_link_tapped"; props: { platform: string } }
+  | { name: "onboarding_completed"; props: Record<string, never> }
+  | { name: "empty_state_cta_tapped"; props: { screen: "history" | "scan" } };
+
+export function analytics<E extends AnalyticsEvent>(name: E["name"], props?: E["props"]) {
+  try {
+    track({ type: "analytics", name, props: (props ?? {}) as Record<string, string | number | boolean | null> });
+  } catch {
+    // never let analytics break the app
+  }
+}
 
 const KEY = "flipit.telemetry.v1";
 const MAX = 200;
