@@ -1,9 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { validateBarcode, titleCategoryCoherence } from "./barcode";
 import { lookupVerifiedProduct, type VerifiedProduct } from "./product-lookup.server";
 import { ebayProvider } from "./pricing/EbayProvider.server";
 import type { PricingResult } from "./pricing/PricingProvider";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import * as Sentry from "@sentry/react";
+
+// ~2 MB decoded image cap (base64 expands ~33%, so cap raw string at ~2.8 MB)
+const MAX_IMAGE_BASE64_CHARS = 2_800_000;
+
+const ValuationInputSchema = z.object({
+  scanType: z.enum(["photo", "barcode", "qr"]),
+  code: z.string().trim().max(128).regex(/^[\x20-\x7E]*$/, "invalid characters").optional(),
+  imageBase64: z
+    .string()
+    .max(MAX_IMAGE_BASE64_CHARS, "image too large")
+    .optional(),
+  notes: z.string().max(500).optional(),
+  region: z
+    .object({
+      code: z.string().trim().max(8),
+      name: z.string().trim().max(64),
+      currency: z.string().trim().max(8).regex(/^[A-Za-z]{2,8}$/, "invalid currency"),
+      markets: z.array(z.string().trim().max(64)).max(20),
+    })
+    .optional(),
+});
 
 export interface ValuationInput {
   scanType: "photo" | "barcode" | "qr";
