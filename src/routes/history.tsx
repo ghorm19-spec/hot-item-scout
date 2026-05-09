@@ -17,14 +17,23 @@ function HistoryPage() {
   const [items, setItems] = useState<ScanRecord[]>([]);
   const [sort, setSort] = useState<Sort>("date");
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setItems(getHistory());
-    const unsub = subscribeHistory(() => setItems(getHistory()));
-    return () => unsub();
+    setItems(() => getHistory());
+    const unsub = subscribeHistory(() => setItems(() => getHistory()));
+    return () => {
+      unsub();
+      if (clearDebounceRef.current) clearTimeout(clearDebounceRef.current);
+    };
   }, []);
 
   const handleClear = () => {
+    // 300ms debounce to prevent double-fire on flaky touches.
+    if (clearDebounceRef.current) return;
+    clearDebounceRef.current = setTimeout(() => {
+      clearDebounceRef.current = null;
+    }, 300);
     setItems((prev) => {
       if (prev.length === 0) return prev;
       const snapshot = prev;
@@ -37,7 +46,7 @@ function HistoryPage() {
           onClick: () => {
             const ordered = [...snapshot].sort((a, b) => a.createdAt - b.createdAt);
             ordered.forEach((r) => saveScan(r));
-            setItems(getHistory());
+            setItems(() => getHistory());
           },
         },
       });
