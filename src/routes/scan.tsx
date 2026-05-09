@@ -218,9 +218,9 @@ function ScanPage() {
             {activeMode === "qr" && t("scan.hint.qr")}
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   onClick={() => { primeAudio(); setActiveMode("photo"); }} />
-            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} onClick={() => { primeAudio(); setActiveMode("barcode"); }} />
-            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      onClick={() => { primeAudio(); setActiveMode("qr"); }} />
+            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); }} />
+            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); }} />
+            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); }} />
           </div>
         </div>
       </div>
