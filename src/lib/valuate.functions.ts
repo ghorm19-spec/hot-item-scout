@@ -3,6 +3,7 @@ import { validateBarcode, titleCategoryCoherence } from "./barcode";
 import { lookupVerifiedProduct, type VerifiedProduct } from "./product-lookup.server";
 import { ebayProvider } from "./pricing/EbayProvider.server";
 import type { PricingResult } from "./pricing/PricingProvider";
+import * as Sentry from "@sentry/react";
 
 export interface ValuationInput {
   scanType: "photo" | "barcode" | "qr";
@@ -278,6 +279,13 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     // so partially-identified items never reach the display layer as products.
     // Items already at 0 stay 0; items >= 70 proceed normally.
     if (confidence > 0 && confidence < 70) {
+      try {
+        Sentry.addBreadcrumb({
+          category: "confidence",
+          message: "confidence_gated",
+          data: { confidence, barcode: data.code },
+        });
+      } catch {}
       const gated = unknownResult({
         currency: parsed.currency || data.region?.currency || "USD",
         warnings: [...warnings, `Identification confidence ${confidence}/100 is below the 70 threshold — result hidden.`],
