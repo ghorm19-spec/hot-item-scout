@@ -162,7 +162,13 @@ export const valuate = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ValuationOutput> => {
     try {
     const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("LOVABLE_API_KEY missing");
+    if (!key) {
+      console.error("[valuate] LOVABLE_API_KEY missing");
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["Valuation service is not configured."], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
 
     const warnings: string[] = [];
     let verified: VerifiedProduct | null = null;
@@ -227,35 +233,53 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     // --------- STEP 3: Call AI ---------
     const aiController = new AbortController();
     const aiTimeout = setTimeout(() => aiController.abort("AI valuation timed out"), AI_MODEL_TIMEOUT_MS);
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      signal: aiController.signal,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM_BASE },
-          { role: "user", content: userParts },
-        ],
-        tools: [TOOL],
-        tool_choice: { type: "function", function: { name: "return_valuation" } },
-      }),
-    });
-    clearTimeout(aiTimeout);
+    let res: Response;
+    try {
+      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        signal: aiController.signal,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SYSTEM_BASE },
+            { role: "user", content: userParts },
+          ],
+          tools: [TOOL],
+          tool_choice: { type: "function", function: { name: "return_valuation" } },
+        }),
+      });
+    } finally {
+      clearTimeout(aiTimeout);
+    }
 
-    if (res.status === 429) throw new Error("Rate limited — try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
+    if (res.status === 429 || res.status === 402) {
+      console.error("[valuate] AI gateway rejected request", res.status);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: [`AI gateway returned ${res.status}.`], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
     if (!res.ok) {
       console.error("AI gateway error", res.status, await res.text());
-      throw new Error(`Valuation failed (${res.status})`);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: [`Valuation failed (${res.status}).`], dataSource: "valuation-error" }),
+        error: true,
+      };
     }
 
     const json = await res.json();
     const call = json.choices?.[0]?.message?.tool_calls?.[0];
-    if (!call?.function?.arguments) throw new Error("AI returned no valuation");
+    if (!call?.function?.arguments) {
+      console.error("[valuate] AI returned no valuation", json);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["AI returned no valuation."], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
     const parsed = JSON.parse(call.function.arguments) as Partial<ValuationOutput> & { unknown?: boolean };
 
     // --------- STEP 4: Post-validation + confidence adjustment ---------
