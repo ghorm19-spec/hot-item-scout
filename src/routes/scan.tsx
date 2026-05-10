@@ -238,8 +238,11 @@ function ScanPage() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black"
-      style={{ width: "100dvw", height: "100dvh" }}
+      className="fixed top-0 left-0 right-0 z-[100] bg-black"
+      style={{
+        width: "100dvw",
+        bottom: "calc(64px + env(safe-area-inset-bottom))",
+      }}
     >
       {/* Full-screen camera fills the container */}
       {scannerMounted && <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />}
