@@ -158,7 +158,14 @@ function clamp(n: number, lo = 0, hi = 100) {
 
 export const valuate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ValuationInputSchema.parse(d) as ValuationInput)
+  .inputValidator((d: unknown) => {
+    const parsed = ValuationInputSchema.safeParse(d);
+    if (!parsed.success) {
+      console.error("[valuate] invalid input", parsed.error);
+      return { scanType: "photo" } as ValuationInput;
+    }
+    return parsed.data as ValuationInput;
+  })
   .handler(async ({ data }): Promise<ValuationOutput> => {
     try {
     const key = process.env.LOVABLE_API_KEY;
@@ -233,7 +240,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     // --------- STEP 3: Call AI ---------
     const aiController = new AbortController();
     const aiTimeout = setTimeout(() => aiController.abort("AI valuation timed out"), AI_MODEL_TIMEOUT_MS);
-    let res: Response;
+    let res: Response | null = null;
     try {
       res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -254,6 +261,14 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       });
     } finally {
       clearTimeout(aiTimeout);
+    }
+
+    if (!res) {
+      console.error("[valuate] AI gateway returned no response");
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["AI valuation returned no response."], dataSource: "valuation-error" }),
+        error: true,
+      };
     }
 
     if (res.status === 429 || res.status === 402) {
