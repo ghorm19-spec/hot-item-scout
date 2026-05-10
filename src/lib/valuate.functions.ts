@@ -160,6 +160,7 @@ export const valuate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ValuationInputSchema.parse(d) as ValuationInput)
   .handler(async ({ data }): Promise<ValuationOutput> => {
+    try {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY missing");
 
@@ -224,8 +225,11 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     }
 
     // --------- STEP 3: Call AI ---------
+    const aiController = new AbortController();
+    const aiTimeout = setTimeout(() => aiController.abort("AI valuation timed out"), AI_MODEL_TIMEOUT_MS);
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: aiController.signal,
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
@@ -240,6 +244,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
         tool_choice: { type: "function", function: { name: "return_valuation" } },
       }),
     });
+    clearTimeout(aiTimeout);
 
     if (res.status === 429) throw new Error("Rate limited — try again in a moment.");
     if (res.status === 402) throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
