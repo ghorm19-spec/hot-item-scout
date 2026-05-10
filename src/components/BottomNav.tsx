@@ -12,7 +12,7 @@ export function BottomNav() {
   const loc = useLocation();
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/85 backdrop-blur-xl"
+      className="fixed bottom-0 inset-x-0 z-[130] border-t border-border bg-background/85 backdrop-blur-xl pointer-events-auto"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
     >
       <ul className="grid grid-cols-4 max-w-md mx-auto">
