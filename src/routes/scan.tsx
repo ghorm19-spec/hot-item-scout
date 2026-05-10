@@ -204,6 +204,7 @@ function ScanPage() {
       track({ type: "valuation.error", message: String(e?.message || e) });
       const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
       const msg = String(e?.message || "");
+      const isTimeout = /timed out|timeout/i.test(msg);
       if (status === 401 || /\b401\b|unauthorized/i.test(msg)) {
         analytics("scan_failed", { mode: activeMode, error_type: "unauthorized" });
         setNeedsAuth(true);
@@ -211,11 +212,18 @@ function ScanPage() {
         setBusy(false);
         return;
       }
-      analytics("scan_failed", { mode: activeMode, error_type: status ? `http_${status}` : "exception" });
-      Sentry.captureException(e, {
-        extra: { context: "valuation_failure", barcode: input.code },
-      });
-      setErr(e?.message || "Something went wrong. Tap a mode again to retry.");
+      analytics("scan_failed", { mode: activeMode, error_type: isTimeout ? "timeout" : status ? `http_${status}` : "exception" });
+      try {
+        Sentry.captureException(e, {
+          extra: { context: "valuation_failure", barcode: input.code, timeout: isTimeout },
+        });
+      } catch {}
+      // Photo timeout / unknown errors → show the friendly "couldn't identify" recovery card.
+      if (activeMode === "photo" && (isTimeout || !status)) {
+        setNoResult(true);
+      } else {
+        setErr(isTimeout ? "That took too long — please try again." : (e?.message || "Something went wrong. Tap a mode again to retry."));
+      }
       setBusy(false);
     }
   };
