@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/react";
 
 // ~2 MB decoded image cap (base64 expands ~33%, so cap raw string at ~2.8 MB)
 const MAX_IMAGE_BASE64_CHARS = 2_800_000;
+const AI_MODEL_TIMEOUT_MS = 10_000;
 
 // Strip control chars (incl. newlines) from any free-text field that gets
 // concatenated into the AI prompt — defends against prompt-injection.
@@ -76,6 +77,7 @@ export interface ValuationOutput {
   dataSource: string;
   warnings: string[];
   unknown: boolean;
+  error?: boolean;
   imageUrl?: string;
   // NEW — explicit honesty layer
   pricingTier: PricingTier;       // how to render prices in UI
@@ -156,10 +158,24 @@ function clamp(n: number, lo = 0, hi = 100) {
 
 export const valuate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ValuationInputSchema.parse(d) as ValuationInput)
+  .inputValidator((d: unknown) => {
+    const parsed = ValuationInputSchema.safeParse(d);
+    if (!parsed.success) {
+      console.error("[valuate] invalid input", parsed.error);
+      return { scanType: "photo" } as ValuationInput;
+    }
+    return parsed.data as ValuationInput;
+  })
   .handler(async ({ data }): Promise<ValuationOutput> => {
+    try {
     const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("LOVABLE_API_KEY missing");
+    if (!key) {
+      console.error("[valuate] LOVABLE_API_KEY missing");
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["Valuation service is not configured."], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
 
     const warnings: string[] = [];
     let verified: VerifiedProduct | null = null;
@@ -222,33 +238,63 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
     }
 
     // --------- STEP 3: Call AI ---------
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM_BASE },
-          { role: "user", content: userParts },
-        ],
-        tools: [TOOL],
-        tool_choice: { type: "function", function: { name: "return_valuation" } },
-      }),
-    });
+    const aiController = new AbortController();
+    const aiTimeout = setTimeout(() => aiController.abort("AI valuation timed out"), AI_MODEL_TIMEOUT_MS);
+    let res: Response | null = null;
+    try {
+      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        signal: aiController.signal,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SYSTEM_BASE },
+            { role: "user", content: userParts },
+          ],
+          tools: [TOOL],
+          tool_choice: { type: "function", function: { name: "return_valuation" } },
+        }),
+      });
+    } finally {
+      clearTimeout(aiTimeout);
+    }
 
-    if (res.status === 429) throw new Error("Rate limited — try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
+    if (!res) {
+      console.error("[valuate] AI gateway returned no response");
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["AI valuation returned no response."], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
+
+    if (res.status === 429 || res.status === 402) {
+      console.error("[valuate] AI gateway rejected request", res.status);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: [`AI gateway returned ${res.status}.`], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
     if (!res.ok) {
       console.error("AI gateway error", res.status, await res.text());
-      throw new Error(`Valuation failed (${res.status})`);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: [`Valuation failed (${res.status}).`], dataSource: "valuation-error" }),
+        error: true,
+      };
     }
 
     const json = await res.json();
     const call = json.choices?.[0]?.message?.tool_calls?.[0];
-    if (!call?.function?.arguments) throw new Error("AI returned no valuation");
+    if (!call?.function?.arguments) {
+      console.error("[valuate] AI returned no valuation", json);
+      return {
+        ...unknownResult({ currency: data.region?.currency || "USD", warnings: ["AI returned no valuation."], dataSource: "valuation-error" }),
+        error: true,
+      };
+    }
     const parsed = JSON.parse(call.function.arguments) as Partial<ValuationOutput> & { unknown?: boolean };
 
     // --------- STEP 4: Post-validation + confidence adjustment ---------
@@ -328,7 +374,9 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
           message: "confidence_gated",
           data: { confidence, barcode: data.code },
         });
-      } catch {}
+      } catch (e) {
+        console.error("[valuate] Sentry breadcrumb failed", e);
+      }
       const gated = unknownResult({
         currency: parsed.currency || data.region?.currency || "USD",
         warnings: [...warnings, `Identification confidence ${confidence}/100 is below the 70 threshold — result hidden.`],
@@ -387,7 +435,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       try {
         realComps = await ebayProvider.lookup(data.code!, category);
       } catch (e) {
-        console.warn("[valuate] ebay lookup failed", e);
+        console.error("[valuate] ebay lookup failed", e);
         realComps = null;
       }
 
@@ -476,6 +524,24 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       pricingHigh,
       pricingRetrievedAt,
     };
+    } catch (e) {
+      console.error("[valuate] fatal valuation failure", e);
+      try {
+        Sentry.captureException(e, { extra: { context: "valuate_fatal", scanType: data.scanType, barcode: data.code } });
+      } catch (sentryError) {
+        console.error("[valuate] Sentry capture failed", sentryError);
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      const isTimeout = /abort|timed out|timeout/i.test(message);
+      return {
+        ...unknownResult({
+          currency: data.region?.currency || "USD",
+          warnings: [isTimeout ? "AI valuation timed out after 10 seconds." : "Valuation failed before a result could be created."],
+          dataSource: isTimeout ? "ai-timeout" : "valuation-error",
+        }),
+        error: true,
+      };
+    }
   });
 
 function unknownResult(opts: { currency: string; warnings: string[]; dataSource: string }): ValuationOutput {

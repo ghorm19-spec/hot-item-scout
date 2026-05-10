@@ -55,10 +55,12 @@ function ScanPage() {
     try {
       if (typeof window === "undefined") return;
       if (!localStorage.getItem("flip_onboarded")) setShowOnboarding(true);
-    } catch {}
+    } catch (e) {
+      console.error("[scan] onboarding storage read failed", e);
+    }
   }, []);
   const dismissOnboarding = () => {
-    try { localStorage.setItem("flip_onboarded", "1"); } catch {}
+    try { localStorage.setItem("flip_onboarded", "1"); } catch (e) { console.error("[scan] onboarding storage write failed", e); }
     analytics("onboarding_completed", {});
     setShowOnboarding(false);
   };
@@ -121,8 +123,8 @@ function ScanPage() {
       const region = getRegion();
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
-      // 15s overall timeout — never let the user freeze waiting for a response.
-      const VALUATION_TIMEOUT_MS = 15000;
+      // 10s overall timeout — never let the user freeze waiting for a response.
+      const VALUATION_TIMEOUT_MS = 10000;
       const valuationPromise = withRetry(
         () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, notes: input.notes, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
         { retries: 2 },
@@ -133,6 +135,15 @@ function ScanPage() {
           setTimeout(() => reject(new Error("Valuation timed out — please try again.")), VALUATION_TIMEOUT_MS),
         ),
       ]);
+      if (!v) {
+        console.error("[scan] valuation returned no result", { mode: activeMode, hasCode: !!input.code, hasImage: !!input.imageBase64 });
+        playError();
+        analytics("scan_failed", { mode: activeMode, error_type: "empty_result" });
+        track({ type: "valuation.error", message: "empty_result" });
+        setErr("We couldn't identify this item. Please try again.");
+        setBusy(false);
+        return;
+      }
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
 
       // Photo no-result state — when AI couldn't recognize the item OR confidence is low,
@@ -217,7 +228,9 @@ function ScanPage() {
         Sentry.captureException(e, {
           extra: { context: "valuation_failure", barcode: input.code, timeout: isTimeout },
         });
-      } catch {}
+      } catch (sentryError) {
+        console.error("[scan] Sentry capture failed", sentryError);
+      }
       // Photo timeout / unknown errors → show the friendly "couldn't identify" recovery card.
       if (activeMode === "photo" && (isTimeout || !status)) {
         setNoResult(true);
