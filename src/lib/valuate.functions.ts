@@ -335,7 +335,9 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
           message: "confidence_gated",
           data: { confidence, barcode: data.code },
         });
-      } catch {}
+      } catch (e) {
+        console.error("[valuate] Sentry breadcrumb failed", e);
+      }
       const gated = unknownResult({
         currency: parsed.currency || data.region?.currency || "USD",
         warnings: [...warnings, `Identification confidence ${confidence}/100 is below the 70 threshold — result hidden.`],
@@ -394,7 +396,7 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       try {
         realComps = await ebayProvider.lookup(data.code!, category);
       } catch (e) {
-        console.warn("[valuate] ebay lookup failed", e);
+        console.error("[valuate] ebay lookup failed", e);
         realComps = null;
       }
 
@@ -483,6 +485,24 @@ Your job: price THIS exact product for resale. Do not substitute a different ite
       pricingHigh,
       pricingRetrievedAt,
     };
+    } catch (e) {
+      console.error("[valuate] fatal valuation failure", e);
+      try {
+        Sentry.captureException(e, { extra: { context: "valuate_fatal", scanType: data.scanType, barcode: data.code } });
+      } catch (sentryError) {
+        console.error("[valuate] Sentry capture failed", sentryError);
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      const isTimeout = /abort|timed out|timeout/i.test(message);
+      return {
+        ...unknownResult({
+          currency: data.region?.currency || "USD",
+          warnings: [isTimeout ? "AI valuation timed out after 10 seconds." : "Valuation failed before a result could be created."],
+          dataSource: isTimeout ? "ai-timeout" : "valuation-error",
+        }),
+        error: true,
+      };
+    }
   });
 
 function unknownResult(opts: { currency: string; warnings: string[]; dataSource: string }): ValuationOutput {
