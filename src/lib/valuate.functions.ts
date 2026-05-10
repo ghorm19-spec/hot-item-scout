@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/react";
 
 // ~2 MB decoded image cap (base64 expands ~33%, so cap raw string at ~2.8 MB)
 const MAX_IMAGE_BASE64_CHARS = 2_800_000;
+const AI_MODEL_TIMEOUT_MS = 10_000;
 
 // Strip control chars (incl. newlines) from any free-text field that gets
 // concatenated into the AI prompt — defends against prompt-injection.
@@ -76,6 +77,7 @@ export interface ValuationOutput {
   dataSource: string;
   warnings: string[];
   unknown: boolean;
+  error?: boolean;
   imageUrl?: string;
   // NEW — explicit honesty layer
   pricingTier: PricingTier;       // how to render prices in UI
