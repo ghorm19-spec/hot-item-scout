@@ -121,10 +121,18 @@ function ScanPage() {
       const region = getRegion();
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
-      const v = cached || await withRetry(
+      // 15s overall timeout — never let the user freeze waiting for a response.
+      const VALUATION_TIMEOUT_MS = 15000;
+      const valuationPromise = withRetry(
         () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, notes: input.notes, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
         { retries: 2 },
       );
+      const v = cached || await Promise.race([
+        valuationPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Valuation timed out — please try again.")), VALUATION_TIMEOUT_MS),
+        ),
+      ]);
       if (!cached && cacheKey) setCachedValuation(cacheKey, region.code, v);
 
       // Photo no-result state — when AI couldn't recognize the item OR confidence is low,
