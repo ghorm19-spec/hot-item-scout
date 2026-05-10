@@ -123,8 +123,8 @@ function ScanPage() {
       const region = getRegion();
       const cacheKey = (activeMode !== "photo" && input.code) ? input.code : "";
       const cached = cacheKey ? getCachedValuation(cacheKey, region.code) : null;
-      // 15s overall timeout — never let the user freeze waiting for a response.
-      const VALUATION_TIMEOUT_MS = 15000;
+      // 10s overall timeout — never let the user freeze waiting for a response.
+      const VALUATION_TIMEOUT_MS = 10000;
       const valuationPromise = withRetry(
         () => valuateFn({ data: { scanType: activeMode, code: input.code, imageBase64: input.imageBase64, notes: input.notes, region: { code: region.code, name: region.name, currency: region.currency, markets: region.markets } } }),
         { retries: 2 },
