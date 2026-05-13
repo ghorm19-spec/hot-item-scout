@@ -5,47 +5,47 @@ import { computeBadges, getHistory, type ScanRecord } from "@/lib/storage";
 
 export const Route = createFileRoute("/badges")({
   component: BadgesPage,
-  head: () => ({ meta: [{ title: "Badges — Flip it" }] }),
+  head: () => ({ meta: [{ title: "Badges - Flip it" }] }),
 });
+
+const BADGE_CONDITIONS: Record<string, string> = {
+  first: "Complete your first scan",
+  five_hot: "Find 5 high-score items",
+  "500": "Reach $500 estimated profit",
+  streak10: "Complete 10 scans",
+};
 
 function BadgesPage() {
   const [items, setItems] = useState<ScanRecord[]>([]);
   useEffect(() => { setItems(getHistory()); }, []);
   const badges = computeBadges(items);
-  const totalProfit = items.reduce((s, h) => s + Math.max(0, (h.priceLow+h.priceHigh)/2 - (h.buyPrice ?? 0)), 0);
-  const hot = items.filter(i => i.hotness.tier === "HOT").length;
 
   return (
     <AppShell>
-      <header className="pt-6 pb-3">
-        <h1 className="font-display font-black text-2xl">Achievements</h1>
-        <p className="text-sm text-muted-foreground">Flip more, level up.</p>
-      </header>
+      <div className="min-h-screen bg-white text-[#111827]">
+        <header className="pt-6 pb-5">
+          <h1 className="font-display font-black text-2xl text-[#111827]">Your Badges</h1>
+        </header>
 
-      <section className="grid grid-cols-3 gap-2 mb-5">
-        <Stat label="Scans" value={items.length} />
-        <Stat label="🔥 High" value={hot} />
-        <Stat label="Est. profit" value={`$${totalProfit.toFixed(0)}`} />
-      </section>
-
-      <div className="grid grid-cols-2 gap-3">
-        {badges.map(b => (
-          <div key={b.key} className={`rounded-2xl border p-4 text-center ${b.earned ? "bg-card border-primary/40 glow-primary" : "bg-card/50 border-border opacity-50"}`}>
-            <div className="text-4xl">{b.emoji}</div>
-            <p className="mt-2 font-display font-bold">{b.label}</p>
-            <p className="text-[11px] text-muted-foreground">{b.earned ? "Earned" : "Locked"}</p>
-          </div>
-        ))}
+        <div className="grid grid-cols-2 gap-3">
+          {badges.map((b) => (
+            <div
+              key={b.key}
+              className={`rounded-xl p-4 text-center ${
+                b.earned
+                  ? "border border-[#1D9E75] bg-white"
+                  : "border border-transparent bg-[#F3F4F6] opacity-50"
+              }`}
+            >
+              <div className={`mx-auto grid h-12 w-12 place-items-center text-5xl ${b.earned ? "drop-shadow-[0_0_14px_rgba(29,158,117,0.55)]" : "grayscale"}`}>
+                {b.emoji}
+              </div>
+              <p className="mt-4 font-bold text-[#111827]">{b.label}</p>
+              <p className="mt-1 text-xs text-[#6B7280]">{BADGE_CONDITIONS[b.key] || "Keep scanning to unlock"}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </AppShell>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-3 text-center">
-      <p className="font-display font-black text-xl">{value}</p>
-      <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</p>
-    </div>
   );
 }

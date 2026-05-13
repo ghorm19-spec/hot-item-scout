@@ -150,11 +150,12 @@ function ResultPage() {
 
   return (
     <AppShell>
-      <header dir="ltr" className="pt-4 pb-3 flex items-center justify-between">
-        <button onClick={() => navigate({ to: "/" })} className="size-9 grid place-items-center rounded-full bg-card border border-border">
+      <div className="min-h-screen bg-white text-[#111827]">
+      <header dir="ltr" className="pt-4 pb-4 flex items-center justify-between">
+        <button onClick={() => navigate({ to: "/" })} className="size-9 grid place-items-center rounded-full bg-white border border-[#E5E7EB]">
           <ArrowLeft className="size-4" />
         </button>
-        <h1 className="font-display font-bold">Result</h1>
+        <h1 className="font-display font-bold text-[#111827]">Result</h1>
         <ShareMenu rec={rec} />
       </header>
 
@@ -173,24 +174,26 @@ function ResultPage() {
         </div>
       )}
 
-      <section className={`relative rounded-3xl border bg-card p-5 grain ${t}`}>
+      <section className="relative rounded-xl border border-[#E5E7EB] bg-white p-5">
         <div className="flex gap-4">
           {heroImg ? (
-            <img src={heroImg} alt={rec.title} className="size-24 rounded-2xl object-cover border border-border bg-secondary" />
+            <img src={heroImg} alt={rec.title} className="size-24 rounded-xl object-cover border border-[#E5E7EB] bg-[#F3F4F6]" />
           ) : (
-            <div className="size-24 rounded-2xl bg-secondary grid place-items-center text-3xl">
+            <div className="size-24 rounded-xl bg-[#F3F4F6] grid place-items-center text-3xl">
               {rec.scanType === "qr" ? "🔳" : rec.scanType === "barcode" ? "▦" : "📦"}
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{rec.category}</p>
-            <h2 className="font-display font-bold text-lg leading-tight truncate">{rec.title}</h2>
-            {rec.brand && <p className="text-xs text-muted-foreground truncate">by {rec.brand}</p>}
+            <p className="text-[11px] uppercase tracking-widest text-[#6B7280]">{rec.category}</p>
+            <h2 className="font-display font-black text-2xl leading-tight text-[#111827]">{rec.title}</h2>
+            {rec.brand && <p className="text-xs text-[#6B7280] truncate">by {rec.brand}</p>}
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               {!isUnknown && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-current/30 px-3 py-1 text-sm font-bold">
-                  <span className="text-lg">{rec.hotness.emoji}</span>
-                  {rec.hotness.label} · {rec.hotness.score}
+                <div className={`grid size-20 place-items-center rounded-full text-center text-white ${resultHotnessColor(rec.hotness.tier)}`}>
+                  <div>
+                    <p className="text-xs font-bold leading-none">{resultHotnessLabel(rec.hotness.tier)}</p>
+                    <p className="font-display text-2xl font-black leading-none">{rec.hotness.score}</p>
+                  </div>
                 </div>
               )}
               {(() => {
@@ -210,19 +213,19 @@ function ResultPage() {
         {!isUnknown && (rec.pricingTier === "VERIFIED" || rec.pricingTier === "ESTIMATE" || !rec.pricingTier) && (
           <div className="mt-4 flex items-end justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              <p className="text-[11px] uppercase tracking-widest text-[#6B7280]">
                 {rec.pricingTier === "VERIFIED" ? "Estimated resale" : "AI-estimated resale"} ({rec.currency || "USD"})
               </p>
-              <p className="font-display font-black text-3xl">
-                {fmt(adjusted.low, rec.currency)}<span className="text-muted-foreground text-xl"> – </span>{fmt(adjusted.high, rec.currency)}
+              <p className="font-display font-black text-4xl text-[#1D9E75]">
+                {fmt(adjusted.low, rec.currency)}<span className="text-[#6B7280] text-xl"> - </span>{fmt(adjusted.high, rec.currency)}
               </p>
               {rec.pricingTier !== "VERIFIED" && (
                 <p className="text-[10px] text-muted-foreground mt-0.5">Verify against current sold listings before pricing.</p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Confidence</p>
-              <div className={`inline-flex items-baseline gap-1.5 px-2 py-0.5 rounded-lg border ${conf.cls}`}>
+              <p className="text-[11px] uppercase tracking-widest text-[#6B7280]">Confidence</p>
+              <div className="inline-flex items-baseline gap-1.5 px-2 py-0.5 rounded-lg border border-[#E5E7EB] text-[#111827]">
                 <span className="font-display font-bold text-xl">{rec.confidence}%</span>
                 <span className="text-[10px] font-bold tracking-wider">{conf.label}</span>
               </div>
@@ -303,8 +306,8 @@ function ResultPage() {
       </section>
 
       {(rec.pricingTier === "VERIFIED" || rec.pricingTier === "ESTIMATE" || !rec.pricingTier) && !isUnknown && (
-        <section className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Profit calculator</p>
+        <section className="mt-4 rounded-xl border border-[#E5E7EB] bg-white p-4">
+          <p className="text-xs uppercase tracking-widest text-[#6B7280] mb-3">Profit calculator</p>
           <label className="flex items-center justify-between gap-3">
             <span className="text-sm">Buy price ({rec.currency || "USD"})</span>
             <input
@@ -313,21 +316,24 @@ function ResultPage() {
               onChange={e => setBuyPrice(parseFloat(e.target.value) || 0)}
               onBlur={persistTweaks}
               placeholder="0"
-              className="w-28 rounded-lg bg-input border border-border px-3 py-2 text-right font-display font-bold"
+              className="w-28 rounded-lg bg-white border border-[#E5E7EB] px-3 py-2 text-right font-display font-bold"
             />
           </label>
           <div className="mt-3 grid grid-cols-2 gap-2 text-center">
             <Pill label="Mid sell" value={fmt(adjusted.mid, rec.currency)} />
             <Pill label="Net profit" value={fmt(adjusted.profit, rec.currency)} highlight />
           </div>
-          <div className="mt-3 rounded-xl border border-border bg-secondary/40 p-3 space-y-1.5 text-xs">
-            <FeeRow label="Gross sell"     value={fmt(adjusted.fb.grossSalePrice, rec.currency)} />
-            <FeeRow label="eBay fee (13.25% + $0.30)" value={`-${fmt(adjusted.fb.ebayFee, rec.currency)}`} />
-            <FeeRow label="Payment fee (2.9% + $0.30)" value={`-${fmt(adjusted.fb.paymentFee, rec.currency)}`} />
-            <FeeRow label="Shipping est."  value={`-${fmt(adjusted.fb.shipping, rec.currency)}`} />
-            <div className="h-px bg-border my-1" />
-            <FeeRow label="Net proceeds"   value={fmt(adjusted.fb.netProceeds, rec.currency)} bold />
-          </div>
+          <details className="mt-3 rounded-xl border border-[#E5E7EB] bg-white p-3 text-xs" open>
+            <summary className="cursor-pointer font-bold text-[#111827]">Fee breakdown</summary>
+            <div className="mt-3 space-y-1.5">
+              <FeeRow label="Gross sell" value={fmt(adjusted.fb.grossSalePrice, rec.currency)} />
+              <FeeRow label="eBay fee (13.25% + $0.30)" value={`-${fmt(adjusted.fb.ebayFee, rec.currency)}`} />
+              <FeeRow label="Payment fee (2.9% + $0.30)" value={`-${fmt(adjusted.fb.paymentFee, rec.currency)}`} />
+              <FeeRow label="Shipping est." value={`-${fmt(adjusted.fb.shipping, rec.currency)}`} />
+              <div className="h-px bg-[#E5E7EB] my-1" />
+              <FeeRow label="Net profit" value={fmt(adjusted.profit, rec.currency)} bold />
+            </div>
+          </details>
         </section>
       )}
 
@@ -449,15 +455,26 @@ function ResultPage() {
 
 
       {!isUnknown && rec.pricingTier !== "SPECULATIVE" && (
-        <MarketplaceExport
-          rec={rec}
-          trigger={
-            <button className="mt-5 w-full rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition glow-primary">
-              <Megaphone className="size-4" />
-              Generate listing for marketplaces
-            </button>
-          }
-        />
+        <div className="mt-5 flex flex-col gap-3">
+          <ShareMenu
+            rec={rec}
+            align="center"
+            trigger={
+              <button className="w-full rounded-lg border border-[#1D9E75] bg-transparent px-6 py-3 font-bold text-[#1D9E75] flex items-center justify-center gap-2 active:scale-[0.99] transition">
+                Share Result
+              </button>
+            }
+          />
+          <MarketplaceExport
+            rec={rec}
+            trigger={
+              <button className="w-full rounded-lg bg-[#1D9E75] px-6 py-3 font-bold text-white flex items-center justify-center gap-2 active:scale-[0.99] transition">
+                <Megaphone className="size-4" />
+                List on Marketplace
+              </button>
+            }
+          />
+        </div>
       )}
 
       {/* Quick copy — single-tap plain-text listing for any platform */}
@@ -535,6 +552,7 @@ function ResultPage() {
         >
           View history
         </Link>
+      </div>
       </div>
     </AppShell>
   );
@@ -640,6 +658,18 @@ function FeeRow({ label, value, bold }: { label: string; value: string; bold?: b
       <span className={`font-display ${bold ? "font-black text-primary" : "font-bold"}`}>{value}</span>
     </div>
   );
+}
+
+function resultHotnessColor(tier: ScanRecord["hotness"]["tier"]) {
+  if (tier === "HOT") return "bg-[#16A34A]";
+  if (tier === "WARM") return "bg-[#CA8A04]";
+  return "bg-[#DC2626]";
+}
+
+function resultHotnessLabel(tier: ScanRecord["hotness"]["tier"]) {
+  if (tier === "HOT") return "HIGH";
+  if (tier === "WARM") return "MEDIUM";
+  return "LOW";
 }
 
 function fmt(n: number, currency?: string) {

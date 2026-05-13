@@ -3,7 +3,6 @@ import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, typ
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, clearHistory, saveScan, subscribeHistory, type ScanRecord } from "@/lib/storage";
-import { tierClass } from "@/lib/hotness";
 import { AlertTriangle, ScanLine } from "lucide-react";
 import { analytics } from "@/lib/telemetry";
 
@@ -11,7 +10,7 @@ type Sort = "date" | "hotness" | "profit" | "category";
 
 export const Route = createFileRoute("/history")({
   component: HistoryPage,
-  head: () => ({ meta: [{ title: "History — Flip it" }] }),
+  head: () => ({ meta: [{ title: "History - Flip it" }] }),
 });
 
 function HistoryPage() {
@@ -30,7 +29,6 @@ function HistoryPage() {
   }, []);
 
   const handleClear = useCallback(() => {
-    // 300ms debounce to prevent double-fire on flaky touches.
     if (clearDebounceRef.current) return;
     clearDebounceRef.current = setTimeout(() => {
       clearDebounceRef.current = null;
@@ -55,131 +53,109 @@ function HistoryPage() {
     });
   }, []);
 
-  // Drop malformed entries + sort — memoized so it only recomputes when items or sort change.
   const sorted = useMemo(() => {
     const safeItems = items.filter(
       (r) =>
         r &&
         typeof r.id === "string" && r.id.length > 0 &&
         typeof r.createdAt === "number" && Number.isFinite(r.createdAt) &&
-        // For barcode/qr scans, require a code; photo scans are exempt (no barcode).
         (r.scanType === "photo" || (typeof r.code === "string" && r.code.length > 0)),
     );
     return [...safeItems].sort((a, b) => {
       if (sort === "date") return b.createdAt - a.createdAt;
       if (sort === "hotness") return b.hotness.score - a.hotness.score;
-      if (sort === "profit") return ((b.priceLow+b.priceHigh)/2 - (b.buyPrice ?? 0)) - ((a.priceLow+a.priceHigh)/2 - (a.buyPrice ?? 0));
+      if (sort === "profit") return ((b.priceLow + b.priceHigh) / 2 - (b.buyPrice ?? 0)) - ((a.priceLow + a.priceHigh) / 2 - (a.buyPrice ?? 0));
       return a.category.localeCompare(b.category);
     });
   }, [items, sort]);
 
   return (
     <AppShell>
-      <header className="pt-6 pb-3 flex items-center justify-between">
-        <h1 className="font-display font-black text-2xl">History</h1>
-        {items.length > 0 && (
-          <button
-            type="button"
-            aria-label="Clear scan history"
-            onTouchStart={() => { try { navigator.vibrate?.([8, 0, 12]); } catch {} }}
-            onClick={handleClear}
-            className="clear-button relative text-xs text-muted-foreground font-medium rounded-lg active:scale-95 transition-transform duration-[60ms] ease-out before:content-[''] before:absolute before:-inset-2"
-            style={{
-              minWidth: 44,
-              minHeight: 44,
-              padding: "12px 20px",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >Clear</button>
-        )}
-      </header>
-
-      <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-3">
-        {(["date","hotness","profit","category"] as Sort[]).map(s => (
-          <button
-            key={s}
-            onClick={() => setSort(s)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${sort===s ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"}`}
-          >{s}</button>
-        ))}
-      </div>
-
-      <HistoryListBoundary onReset={() => { clearHistory(); setItems([]); }}>
-        {sorted.length === 0 ? (
-        <div className="mt-10 relative">
-          {/* Ghost card behind the empty-state — fake data, never persisted. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-4 top-2 rounded-2xl border border-border bg-card/60 p-3 flex gap-3 opacity-20 blur-[1px] pointer-events-none"
-          >
-            <div className="size-16 rounded-xl bg-secondary grid place-items-center text-2xl">👟</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Sneakers</p>
-              <p className="font-semibold truncate">Nike Dunk Low Panda</p>
-              <p className="text-xs text-muted-foreground">USD 90–140</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl">🔥</div>
-              <div className="text-xs font-display font-bold">82</div>
-            </div>
-          </div>
-
-          <div className="relative mt-16 flex flex-col items-center text-center px-6">
-            <div className="size-16 rounded-2xl bg-primary/15 border border-primary/30 grid place-items-center mb-4 glow-primary">
-              <ScanLine className="size-8 text-primary" />
-            </div>
-            <h2 className="font-display font-black text-xl mb-1">No scans yet</h2>
-            <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-              Go scan your first item!
-            </p>
-            <Link
-              to="/scan"
-              search={{ mode: "photo" } as any}
-              onClick={() => analytics("empty_state_cta_tapped", { screen: "history" })}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-3 font-bold active:scale-95 transition glow-primary"
+      <div className="min-h-screen bg-white text-[#111827]">
+        <header className="pt-6 pb-4 flex items-center justify-between">
+          <h1 className="font-display font-black text-2xl text-[#111827]">Scan History</h1>
+          {items.length > 0 && (
+            <button
+              type="button"
+              aria-label="Clear scan history"
+              onTouchStart={() => { try { navigator.vibrate?.([8, 0, 12]); } catch {} }}
+              onClick={handleClear}
+              className="clear-button relative rounded-lg px-5 py-3 text-xs font-medium text-[#6B7280] active:scale-95 transition-transform duration-[60ms] ease-out before:content-[''] before:absolute before:-inset-2"
+              style={{ minWidth: 44, minHeight: 44, WebkitTapHighlightColor: "transparent" }}
             >
-              <ScanLine className="size-4" /> Scan Something
-            </Link>
-          </div>
+              Clear
+            </button>
+          )}
+        </header>
+
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-4">
+          {(["date", "hotness", "profit", "category"] as Sort[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSort(s)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${sort === s ? "border-[#1D9E75] bg-[#1D9E75] text-white" : "border-[#E5E7EB] bg-white text-[#6B7280]"}`}
+            >
+              {s}
+            </button>
+          ))}
         </div>
-      ) : (
-        <ul className="space-y-2">
-          {sorted.map(r => (<HistoryRow key={r.id} r={r} />))}
-        </ul>
-        )}
-      </HistoryListBoundary>
+
+        <HistoryListBoundary onReset={() => { clearHistory(); setItems([]); }}>
+          {sorted.length === 0 ? (
+            <div className="min-h-[55vh] grid place-items-center">
+              <div className="flex flex-col items-center text-center px-6">
+                <ScanLine className="mb-4 size-12 text-[#9CA3AF]" />
+                <h2 className="font-display font-black text-xl text-[#9CA3AF]">No scans yet</h2>
+                <p className="mt-1 text-sm text-[#9CA3AF]">Start scanning to see your history</p>
+                <Link
+                  to="/scan"
+                  search={{ mode: "photo" } as any}
+                  onClick={() => analytics("empty_state_cta_tapped", { screen: "history" })}
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#1D9E75] px-6 py-3 font-bold text-white active:scale-95 transition"
+                >
+                  <ScanLine className="size-4" /> Scan Something
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {sorted.map((r) => (<HistoryRow key={r.id} r={r} />))}
+            </ul>
+          )}
+        </HistoryListBoundary>
+      </div>
     </AppShell>
   );
 }
 
-/* ----------------- Memoized row component ----------------- */
-
 const HistoryRow = memo(function HistoryRow({ r }: { r: ScanRecord }) {
   return (
     <li>
-      <Link to="/result/$id" params={{ id: r.id }} className={`flex gap-3 p-3 rounded-2xl border bg-card ${tierClass(r.hotness.tier)}`}>
+      <Link to="/result/$id" params={{ id: r.id }} className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3">
         {r.thumbnail ? (
-          <img src={r.thumbnail} alt="" className="size-16 rounded-xl object-cover border border-border" />
+          <img src={r.thumbnail} alt="" className="h-[60px] w-[60px] rounded-lg object-cover" />
         ) : (
-          <div className="size-16 rounded-xl bg-secondary grid place-items-center text-2xl">
-            {r.scanType === "qr" ? "🔳" : r.scanType === "barcode" ? "▦" : "📦"}
+          <div className="h-[60px] w-[60px] rounded-lg bg-[#F3F4F6] grid place-items-center text-xl">
+            {r.scanType === "qr" ? "QR" : r.scanType === "barcode" ? "|||" : "IMG"}
           </div>
         )}
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.category}</p>
-          <p className="font-semibold truncate">{r.title}</p>
-          <p className="text-xs text-muted-foreground">{r.currency || "USD"} {r.priceLow}–{r.priceHigh}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-[#111827]">{r.title}</p>
+          <p className="text-sm font-semibold text-[#1D9E75]">{r.currency || "USD"} {r.priceLow}-{r.priceHigh}</p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl">{r.hotness.emoji}</div>
-          <div className="text-xs font-display font-bold">{r.hotness.score}</div>
-        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold text-white ${hotnessBadge(r.hotness.tier)}`}>
+          {r.hotness.label}
+        </span>
       </Link>
     </li>
   );
 });
 
-/* ----------------- Local error boundary for the history list ----------------- */
+function hotnessBadge(tier: ScanRecord["hotness"]["tier"]) {
+  if (tier === "HOT") return "bg-[#16A34A]";
+  if (tier === "WARM") return "bg-[#CA8A04]";
+  return "bg-[#DC2626]";
+}
 
 interface BoundaryProps { children: ReactNode; onReset: () => void; }
 interface BoundaryState { error: Error | null; }
@@ -201,16 +177,16 @@ class HistoryListBoundaryImpl extends Component<BoundaryProps, BoundaryState> {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="mt-8 rounded-2xl border border-destructive/40 bg-destructive/10 p-5 text-center">
-        <AlertTriangle className="size-6 text-destructive mx-auto mb-2" />
-        <p className="font-display font-bold text-destructive">Couldn't load your history</p>
-        <p className="text-xs text-muted-foreground mt-1">
+      <div className="mt-8 rounded-xl border border-[#E5E7EB] bg-white p-5 text-center">
+        <AlertTriangle className="mx-auto mb-2 size-6 text-[#DC2626]" />
+        <p className="font-display font-bold text-[#111827]">Couldn't load your history</p>
+        <p className="mt-1 text-xs text-[#6B7280]">
           A scan record is corrupted. Clearing history will reset the local store.
         </p>
         <button
           type="button"
           onClick={this.reset}
-          className="mt-4 rounded-xl bg-destructive text-destructive-foreground px-4 py-2 text-sm font-bold active:scale-95 transition"
+          className="mt-4 rounded-lg bg-[#1D9E75] px-6 py-3 text-sm font-bold text-white active:scale-95 transition"
         >
           Clear history
         </button>

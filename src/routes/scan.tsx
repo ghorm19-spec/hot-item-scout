@@ -250,13 +250,34 @@ function ScanPage() {
   };
 
   return (
-    <div
-      className="fixed top-0 left-0 right-0 z-[100] bg-black"
-      style={{
-        width: "100dvw",
-        bottom: "calc(64px + env(safe-area-inset-bottom))",
-      }}
-    >
+    <div className="fixed inset-0 z-[100] bg-black" style={{ width: "100dvw" }}>
+      <style>{`
+        button[aria-label="Capture"] {
+          width: 80px !important;
+          height: 80px !important;
+          border-radius: 9999px !important;
+          background: #1D9E75 !important;
+          border: 0 !important;
+          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35) !important;
+        }
+        button[aria-label="Capture"] span {
+          width: 34px !important;
+          height: 34px !important;
+          background: transparent !important;
+          box-shadow: inset 0 0 0 4px #ffffff !important;
+          position: relative;
+        }
+        button[aria-label="Capture"] span::after {
+          content: "";
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          border-radius: 9999px;
+          background: #ffffff;
+          right: 2px;
+          top: 2px;
+        }
+      `}</style>
       {/* Full-screen camera fills the container */}
       {scannerMounted && <CameraScanner key={scannerKey} mode={activeMode} onCapture={handleResult} />}
 
@@ -274,7 +295,7 @@ function ScanPage() {
       <div className="pointer-events-none absolute inset-0">
         {/* Top controls */}
         <div
-          className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2"
+          className="absolute top-0 left-0 right-0 flex items-center justify-center gap-2"
           style={{
             paddingTop: "max(env(safe-area-inset-top), 16px)",
             paddingLeft: 16,
@@ -284,47 +305,42 @@ function ScanPage() {
         >
           <button
             onClick={() => navigate({ to: "/" })}
-            className="size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white active:scale-95 transition"
+            className="absolute left-4 size-10 grid place-items-center rounded-full bg-black/35 text-white active:scale-95 transition"
             aria-label="Back"
           >
             <ArrowLeft className="size-4" />
           </button>
-          <div className="flex items-center gap-2">
-            <LanguagePicker />
-            <RegionPicker />
-            <label
-              className={`size-10 grid place-items-center rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white transition ${signedOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"}`}
-              aria-label="Upload photo"
-              aria-disabled={signedOut}
-              onClick={(e) => { if (signedOut) { e.preventDefault(); requireAuth(); } }}
-            >
-              <Upload className="size-4" />
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} disabled={signedOut} />
-            </label>
+          <div className="flex items-center gap-1 rounded-full bg-black/35 p-1 backdrop-blur-md">
+            <ModeTab label="Barcode" active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); restartScanner(); }} />
+            <ModeTab label="Photo" active={activeMode==="photo"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); restartScanner(); }} />
+            <ModeTab label="QR" active={activeMode==="qr"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); restartScanner(); }} />
           </div>
+          <label
+            className={`absolute right-4 size-10 grid place-items-center rounded-full bg-black/35 text-white transition ${signedOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"}`}
+            aria-label="Upload photo"
+            aria-disabled={signedOut}
+            onClick={(e) => { if (signedOut) { e.preventDefault(); requireAuth(); } }}
+          >
+            <Upload className="size-4" />
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onUpload} disabled={signedOut} />
+          </label>
         </div>
 
-        {/* Bottom controls: mode tabs + hint — hidden while camera is active so capture button stays clear */}
+        {/* Bottom hint */}
         <div
-          className="absolute bottom-0 left-0 right-0 flex flex-col gap-3"
+          className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3"
           style={{
             paddingBottom: "max(env(safe-area-inset-bottom), 20px)",
             paddingLeft: 16,
             paddingRight: 16,
             pointerEvents: "auto",
-            display: cameraActive ? "none" : "flex",
           }}
         >
-          <p className="text-[11px] text-white/85 text-center drop-shadow">
+          <p className="mb-24 text-[11px] text-white/70 text-center drop-shadow">
             {activeMode === "photo" && t("scan.hint.photo")}
             {activeMode === "barcode" && t("scan.hint.barcode")}
             {activeMode === "qr" && t("scan.hint.qr")}
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            <ModeTab icon={<Camera className="size-4" />}   label={t("mode.photo")}   active={activeMode==="photo"}   disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("photo"); restartScanner(); }} />
-            <ModeTab icon={<ScanLine className="size-4" />} label={t("mode.barcode")} active={activeMode==="barcode"} disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("barcode"); restartScanner(); }} />
-            <ModeTab icon={<QrCode className="size-4" />}   label={t("mode.qr")}      active={activeMode==="qr"}      disabled={signedOut} onClick={() => { if (signedOut) return requireAuth(); primeAudio(); setActiveMode("qr"); restartScanner(); }} />
-          </div>
         </div>
       </div>
 
@@ -339,12 +355,12 @@ function ScanPage() {
       )}
 
       {err && (
-        <div className="absolute inset-0 z-[105] grid place-items-center p-6 bg-black/75 backdrop-blur-md">
-          <div className="w-full max-w-sm rounded-2xl border border-destructive/40 bg-card text-card-foreground p-5 shadow-2xl">
-            <p className="font-display font-bold text-base mb-1">
+        <div className="absolute inset-x-0 bottom-0 z-[105] p-4">
+          <div className="w-full rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xl">
+            <p className="font-display font-bold text-base mb-1 text-[#1D9E75]">
               {needsAuth ? "Sign in required" : "Scan didn't go through"}
             </p>
-            <p className="text-sm text-muted-foreground mb-4">{err}</p>
+            <p className="text-sm text-[#6B7280] mb-4">{err}</p>
             <div className="flex flex-col gap-2">
               {needsAuth ? (
                 <button
@@ -528,10 +544,10 @@ function OnboardingOverlay({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-function ModeTab({ icon, label, active, disabled, onClick }: { icon: React.ReactNode; label: string; active: boolean; disabled?: boolean; onClick: () => void }) {
+function ModeTab({ label, active, disabled, onClick }: { label: string; active: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} aria-disabled={disabled} className={`rounded-xl py-2 flex items-center justify-center gap-2 text-sm font-medium border transition backdrop-blur-md ${active ? "bg-primary text-primary-foreground border-primary glow-primary" : "bg-black/45 border-white/20 text-white"} ${disabled ? "opacity-50" : ""}`}>
-      {icon}{label}
+    <button onClick={onClick} aria-disabled={disabled} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${active ? "bg-white text-[#111827]" : "bg-transparent text-[#9CA3AF]"} ${disabled ? "opacity-50" : ""}`}>
+      {label}
     </button>
   );
 }
