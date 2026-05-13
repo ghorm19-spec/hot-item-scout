@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Camera, Flame, DollarSign, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { Camera, Flame, DollarSign, Sparkles, ArrowRight, Loader2, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 
@@ -41,6 +41,8 @@ function Index() {
 
   return (
     <AppShell>
+      <HomeHeader />
+
       {/* HERO */}
       <section className="relative mt-6 rounded-3xl overflow-hidden p-6 sm:p-8 grain bg-gradient-to-br from-secondary via-card to-secondary border border-border">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary font-semibold">
@@ -102,6 +104,11 @@ function Index() {
         </div>
       </section>
 
+      {/* CATEGORY CARD */}
+      <section className="mt-10">
+        <VintageClothingCard />
+      </section>
+
       {/* REAL EXAMPLES */}
       <section className="mt-10">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3 text-center flex items-center justify-center gap-1">
@@ -144,6 +151,56 @@ function Index() {
         </button>
       </section>
     </AppShell>
+  );
+}
+
+function HomeHeader() {
+  const navigate = useNavigate();
+
+  return (
+    <header
+      className="sticky top-0 z-50 flex items-center justify-between"
+      style={{ background: "#ffffff", padding: "16px 24px" }}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className="grid place-items-center"
+          style={{
+            background: "#1D9E75",
+            borderRadius: "50%",
+            width: "32px",
+            height: "32px",
+          }}
+        >
+          <RefreshCw className="size-4 text-white" strokeWidth={3} />
+        </div>
+        <span className="font-bold text-gray-900">Flip it</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/login" })}
+        className="bg-transparent p-0"
+        style={{ color: "#374151", fontSize: "15px", textDecoration: "none" }}
+      >
+        Sign In
+      </button>
+    </header>
+  );
+}
+
+function VintageClothingCard() {
+  return (
+    <div className="relative h-40 overflow-hidden rounded-2xl border border-border bg-card">
+      <img
+        src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=600"
+        alt="Vintage Clothing"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="relative z-10 flex h-full items-end p-4">
+        <p className="font-display text-xl font-black text-white">Vintage Clothing</p>
+      </div>
+    </div>
   );
 }
 
